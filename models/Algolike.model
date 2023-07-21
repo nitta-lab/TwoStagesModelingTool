@@ -1,0 +1,113 @@
+init {
+	deck := nil
+	handsA := nil
+	handsB := nil
+	guessA := 0
+	guessB := 0
+}
+channel targetAInput{
+	out targetA(t:Int, setTargetA(a:Int)) == a
+}
+channel targetBInput{
+	out targetB(t:Int, setTargetB(b:Int)) == b
+}
+channel attackerAInput{
+	out attackerA(t:Int, setAttackerA(a:Int)) == a
+}
+channel attackerBInput{
+	out attackerB(t:Int, setAttackerB(b:Int)) == b
+}
+channel guessAInput{
+	out guessA(t:Int, setGuessA(a:Int)) == a
+}
+channel guessBInput{
+	out guessB(t:Int, setGuessB(b:Int)) == b
+}
+channel addDeck{
+	out deck(d:List, addCard(num:Integer)) == cons(tuple(num, false), d)
+}
+
+channel drawAInput{
+	
+	ref targetA(t:Int, drawAndAttackA(t, g, b))
+	ref guessA(g:Int, drawAndAttackA(t, g, b))
+	ref	handsB(b:List, drawAndAttackA(t, g, b))
+	out	resultByDrawingA(sda:Tuple, drawAndAttackA(t, g, b)) == tuple(eq(fst(get(b, t)), g), t)
+}
+	
+channel inputDrawArgsA{
+	in	resultByDrawingA(sda:Tuple, drawA(sucTrg, d)) == sucTrg
+	ref deck(d:List, drawA(sucTrg, d))
+	
+	out handsA(outA:List, drawA(sucTrg, d)) == if(fst(sucTrg),
+										sortByKey(cons(tuple(fst(head(d)),false), outA)), 
+										sortByKey(cons(tuple(fst(head(d)), true), outA)))
+										
+	out handsB(outB:List, drawA(sucTrg, d)) == if(fst(sucTrg),
+										set(outB, snd(sucTrg), tuple(fst(get(outB, snd(sucTrg))), true)), 
+										outB)
+	out deck(t:List, drawA(sucTrg, d)) == tail(t)
+}
+
+channel selectAInput{
+	ref attackerA(a:Int, selectAndAttackA(a, t, g, b))
+	ref targetA(t:Int, selectAndAttackA(a, t, g, b))
+	ref guessA(g:Int, selectAndAttackA(a, t, g, b))
+	ref	handsB(b:List, selectAndAttackA(a, t, g, b))
+	out	resultBySelectingA(ssa:Tuple, selectAndAttackA(a, t, g, b)) == tuple(eq(fst(get(b, t)), g), t, a)
+}		
+channel inputSelectArgA{
+	in resultBySelectingA(ssa, selectA(sucTrgAtk)) == sucTrgAtk
+	out handsA(outA, selectA(sucTrgAtk)) == if(fst(sucTrgAtk),
+										outA,
+										set(outA, snd(snd(sucTrgAtk)), tuple(fst(get(outA, snd(snd(sucTrgAtk)))), true)))
+	out handsB(outB, selectA(sucTrgAtk)) == if(fst(sucTrgAtk), 
+										set(outB, fst(snd(sucTrgAtk)), tuple(fst(get(outB, fst(snd(sucTrgAtk)))), true)), 
+										outB)
+}
+channel drawBInput{
+	ref targetB(t:Int, drawAndAttackB(t, g, a))
+	ref guessB(g:Int, drawAndAttackB(t, g, a))
+	ref	handsA(a:List, drawAndAttackB(t, g, a))
+	out	resultByDrawingB(sdb:Tuple, drawAndAttackB(t, g, a)) == tuple(eq(fst(get(a, t)), g), t)
+}
+	
+channel inputDrawArgsB{
+	in	resultByDrawingB(sdb:Tuple, drawB(sucTrg, d)) == sucTrg
+	ref deck(d:List, drawB(sucTrg, d))
+	
+	out handsB(outB:List, drawB(sucTrg, d)) == if(fst(sucTrg),
+										sortByKey(cons(tuple(fst(head(d)),false), outB)), 
+										sortByKey(cons(tuple(fst(head(d)), true), outB)))
+										
+	out handsA(outA:List, drawB(sucTrg, d)) == if(fst(sucTrg),
+										set(outA, snd(sucTrg), tuple(fst(get(outA, snd(sucTrg))), true)), 
+										outA)
+	out deck(t:List, drawB(sucTrg, d)) == tail(t)
+}
+
+channel selectBInput{
+	ref attackerB(atk:Int, selectAndAttackB(atk, t, g, a))
+	ref targetB(t:Int, selectAndAttackB(atk, t, g, a))
+	ref guessB(g:Int, selectAndAttackB(atk, t, g, a))
+	ref	handsA(a:List, selectAndAttackB(atk, t, g, a))
+	out	resultBySelectingB(ssb:Tuple, selectAndAttackB(atk, t, g, a)) == tuple(eq(fst(get(a, t)), g), t, atk)
+}		
+channel inputSelectArgB{
+	in resultBySelectingB(ssb, selectB(sucTrgAtk)) == sucTrgAtk
+	out handsB(outB, selectB(sucTrgAtk)) == if(fst(sucTrgAtk),
+										outB,
+										set(outB, snd(snd(sucTrgAtk)), tuple(fst(get(outB, snd(snd(sucTrgAtk)))), true)))
+	out handsA(outA, selectB(sucTrgAtk)) == if(fst(sucTrgAtk), 
+										set(outA, fst(snd(sucTrgAtk)), tuple(fst(get(outA, fst(snd(sucTrgAtk)))), true)), 
+										outA)
+}
+
+channel judgeA{
+	in handsA(a:List, judge(j)) == j
+	out loseA(la:Bool, judge(j)) == eq(length(extractFaceDown(j)), 0)
+} 
+channel judgeB{
+	in handsB(b:List, judge(j)) == j
+	out loseB(lb:Bool, judge(j)) == eq(length(extractFaceDown(j)), 0)
+} 

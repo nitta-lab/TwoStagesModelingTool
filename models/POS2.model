@@ -1,0 +1,14 @@
+channel CIO {
+	out payment(p:Int, purchase(x:Int)) == x
+}
+
+channel C1 {
+	in payment(p1, update1(y)) == y
+	out points(l:Int, update1(y)) == floor(y * 0.05)
+}
+
+channel C2 {
+	in payment(p1, update2(z)) == z
+	out history(h:List, update2(z)) == cons(z, h)
+	out total(t:Int, update2(z)) == z + t
+}

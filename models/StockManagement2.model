@@ -1,0 +1,13 @@
+init {
+	stock := nil
+	shortage := nil
+}
+
+channel CIO_enter {
+	out deriver(s:Tuple, arrive(item:Str, num:Int)) == tuple(item, num, num)
+}
+
+channel C3 {
+	in deriver(dr, update3(dr2)) == dr2
+	out shipping(sp:Tuple, update3(dr2)) == tuple(fst(dr2), fst(snd(dr2)))
+}

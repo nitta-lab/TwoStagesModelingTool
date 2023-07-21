@@ -1,0 +1,27 @@
+model {
+channel CIO1 {
+   out min(m: Int, tick) == mod(m + 1, 60)
+}
+channel HourUpdate {
+   in hour(h: Int, update(h2)) == h2
+   out hour_ang(h_ang: Double, update(h2)) == h2 / 6 * PI
+}
+channel MinUpdate {
+   in min(m, update(m2)) == m2
+   out min_ang(m_ang: Double, update(m2)) == m2 / 30 * PI
+}
+channel Clock {
+   in min(m, update(m2)) == m2
+   out hour(h, update(m2)) == if(eq(m2, 0), mod(h + 1, 24), h)
+}
+}
+geometry {
+    node c HourUpdate:520,340,30,30
+    node c MinUpdate:520,100,30,30
+    node c Clock:280,220,30,30
+    node r min_ang:670,100,80,30
+    node r min:250,100,80,30
+    node r hour:270,340,80,30
+    node r hour_ang:680,340,80,30
+    node ioc CIO1:100,100,30,30
+}

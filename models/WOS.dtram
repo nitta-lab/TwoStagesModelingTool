@@ -1,0 +1,25 @@
+model {
+channel CIO2 {
+	out highest(h:Double, reset(v)) == v
+}
+channel CIO1 {
+	out temp_f(p:Double, observe(x)) == x
+}
+channel C1{
+	in  temp_f(q:Double, conversion(y)) == y
+	out temp_c(r:Double, conversion(z)) == (z-32) / 1.8
+}
+channel C2{
+	in temp_f(q:Double, update(y)) == y
+	out highest(h:Double, update(z)) == if(gt(z, h), z, h)
+}
+}
+geometry {
+	node c C1:500,200,30,30
+	node c C2:500,100,30,30
+	node r highest:650,100,80,30
+	node r temp_c:650,200,80,30
+	node r temp_f:250,100,80,30
+	node ioc CIO2:100,300,30,30
+	node ioc CIO1:100,100,30,30
+}

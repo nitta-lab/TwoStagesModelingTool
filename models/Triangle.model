@@ -1,0 +1,13 @@
+channel cio1 {
+	out base(x: Double, setBase(x2)) == x2
+}
+
+channel cio2 {
+	out height(y: Double, setHeight(y2)) == y2
+}
+
+channel triable {
+	in base(x, update(x2, y2)) == x2
+	in height(y, update(x2, y2)) == y2
+	out hypothenuse(z: Double, update(x2, y2)) == sqrt(x2 * x2 + y2 * y2)
+}

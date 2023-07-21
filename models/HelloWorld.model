@@ -1,0 +1,7 @@
+channel cio {
+	 out r1(x1:Int,set(x2:Int)) == x2:Int
+}
+channel c2 {
+	 in r1(x1:Int,update(x2:Int)) == x2:Int
+	 out r2(y1:Int,update(x2:Int)) == (x2:Int+1)
+}

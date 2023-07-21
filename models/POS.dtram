@@ -1,0 +1,27 @@
+model {
+channel CIO {
+	out payment(p:Int, purchase(x:Int)) == x
+}
+channel C3 {
+	in history(h, update3(u)) == u
+	out total(t:Int, update3(u)) == sum(u)
+}
+channel C1 {
+	in payment(p, update1(y)) == y
+	out points(l:Int, update1(y)) == floor(y * 0.05)
+}
+channel C2 {
+	in payment(p, update2(z)) == z
+	out history(h:List, update2(z)) == cons(z, h)
+}
+}
+geometry {
+	node c C3:850,90,30,30
+	node c C1:500,20,30,30
+	node c C2:500,90,30,30
+	node r total:1000,90,80,30
+	node r payment:300,55,80,30
+	node r history:650,90,80,30
+	node r points:650,20,80,30
+	node ioc CIO:150,55,30,30
+}

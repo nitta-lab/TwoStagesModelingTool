@@ -1,0 +1,50 @@
+init {
+	stock := nil
+	shortage := nil
+}
+
+channel CIO_enter {
+	out arrival(s:Tuple, arrive(item:Str, num:Int)) == tuple(item, num)
+}
+
+channel CIO_req {
+	out request(r:Tuple, req(item:Str, num:Int)) == tuple(item, num)
+}
+
+channel C1 {
+	in arrival(ar, update1(ar2, st)) == ar2
+	ref stock(st:Map, update1(ar2, st))
+	out available(av:Tuple, update1(ar2, st)) == tuple(fst(ar2), snd(ar2) + lookup(st, fst(ar2)))
+}
+
+channel C2 {
+	in available(av, update2(av2, sh)) == av2
+	ref shortage(sh, update2(av2, sh))
+	out deriver(dr:Tuple, update2(av2, sh)) == if(ge(snd(av2), lookup(sh, fst(av2))), 
+												tuple(fst(av2), lookup(sh, fst(av2)), snd(av2) - lookup(sh, fst(av2))), 
+												tuple(fst(av2), 0, snd(av2)))
+	out shortage(s, update2(av2, sh)) == if(ge(snd(av2), lookup(s, fst(av2))), 
+												insert(s, fst(av2), 0), 
+												s)
+}
+
+channel C3 {
+	in deriver(dr, update3(dr2)) == dr2
+	out stock(st, update3(dr2)) == insert(st, fst(dr2), snd(snd(dr2)))
+}
+
+channel C4 {
+	in deriver(dr, update4(dr2)) == dr2
+	out shipping(sp:Tuple, update4(dr2)) == tuple(fst(dr2), fst(snd(dr2)))
+}
+
+channel C5 {
+	in request(rq, update5(rq2, st)) == rq2
+	ref stock(st, update5(rq2, st))
+	out deriver(dr, update5(rq2, st)) == if(ge(lookup(st, fst(rq2)), snd(rq2)), 
+												tuple(fst(rq2), snd(rq2), lookup(st, fst(rq2)) - snd(rq2)), 
+												tuple(fst(rq2), 0, lookup(st, fst(rq2))))
+	out shortage(sh, update5(rq2, st)) == if(ge(lookup(st, fst(rq2)), snd(rq2)), 
+												sh, 
+												insert(sh, fst(rq2), lookup(sh, fst(rq2)) + snd(rq2)))
+}

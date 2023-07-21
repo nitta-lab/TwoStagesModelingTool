@@ -1,0 +1,475 @@
+package generators;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+
+import code.ast.Block;
+import code.ast.CompilationUnit;
+import code.ast.FieldDeclaration;
+import code.ast.ImportDeclaration;
+import code.ast.MethodDeclaration;
+import code.ast.TypeDeclaration;
+import code.ast.VariableDeclaration;
+import models.Edge;
+import models.Node;
+import models.algebra.Expression;
+import models.algebra.Field;
+import models.algebra.Parameter;
+import models.algebra.Symbol;
+import models.algebra.Term;
+import models.algebra.Type;
+import models.algebra.Variable;
+import models.dataConstraintModel.ChannelGenerator;
+import models.dataConstraintModel.ChannelMember;
+import models.dataConstraintModel.DataConstraintModel;
+import models.dataConstraintModel.IdentifierTemplate;
+import models.dataFlowModel.DataTransferModel;
+import models.dataFlowModel.DataTransferChannelGenerator;
+import models.dataFlowModel.DataTransferChannelGenerator.IResourceStateAccessor;
+import models.dataFlowModel.PushPullAttribute;
+import models.dataFlowModel.PushPullValue;
+import models.dataFlowModel.DataFlowEdge;
+import models.dataFlowModel.DataFlowGraph;
+import models.dataFlowModel.ResourceNode;
+import models.dataFlowModel.StoreAttribute;
+
+/**
+ * Generator for plain Java prototypes
+ * 
+ * @author Nitta
+ *
+ */
+public class JavaCodeGenerator {
+	public static final Type typeVoid = new Type("Void", "void");
+	private static String defaultMainTypeName = "Main";
+	static String mainTypeName = defaultMainTypeName;
+
+	public static String getMainTypeName() {
+		return mainTypeName;
+	}
+
+	public static void setMainTypeName(String mainTypeName) {
+		JavaCodeGenerator.mainTypeName = mainTypeName;
+	}
+
+	public static void resetMainTypeName() {
+		JavaCodeGenerator.mainTypeName = defaultMainTypeName;
+	}
+
+	static public ArrayList<CompilationUnit> doGenerate(DataFlowGraph graph, DataTransferModel model) {
+		ArrayList<CompilationUnit> codes = new ArrayList<>();
+		ArrayList<ResourceNode> resources = determineResourceOrder(graph);
+
+		TypeDeclaration mainType = new TypeDeclaration(mainTypeName);
+		CompilationUnit mainCU = new CompilationUnit(mainType);
+		mainCU.addImport(new ImportDeclaration("java.util.*"));
+		codes.add(mainCU);
+		
+		// Declare the constructor of the main type. 
+		MethodDeclaration mainConstructor = new MethodDeclaration(mainTypeName, true);
+		mainType.addMethod(mainConstructor);
+		
+		// For each resource.
+		for (ResourceNode rn: resources) {
+			boolean f = false;
+			String resourceName = toTypeName(rn.getIdentifierTemplate().getResourceName());
+			TypeDeclaration type = new TypeDeclaration(resourceName);
+			
+			// Declare the field to refer to each resource in the main type.
+			String fieldInitializer = "new " + resourceName + "(";
+			Set<IdentifierTemplate> depends = new HashSet<>();
+			for (Edge e : rn.getOutEdges()) {
+				DataFlowEdge re = (DataFlowEdge) e;
+				IdentifierTemplate dstRes = ((ResourceNode) re.getDestination()).getIdentifierTemplate();
+				String resName = toTypeName(dstRes.getResourceName());
+				if (((PushPullAttribute) re.getAttribute()).getOptions().get(0) == PushPullValue.PUSH) {
+					depends.add(dstRes);
+					fieldInitializer += resName.toLowerCase() + ",";
+					f = true;
+				}
+			}
+			for (Edge e : rn.getInEdges()) {
+				DataFlowEdge re = (DataFlowEdge) e;
+				IdentifierTemplate srcRes = ((ResourceNode) re.getSource()).getIdentifierTemplate();
+				String resName = toTypeName(srcRes.getResourceName());
+				if (((PushPullAttribute) re.getAttribute()).getOptions().get(0) != PushPullValue.PUSH) {
+					depends.add(srcRes);
+					fieldInitializer += resName.toLowerCase() + ",";
+					f = true;
+				} else {
+					if (rn.getIndegree() > 1) {
+						// Declare a field to cache the state of the source resource in the type of the destination resource.
+						IdentifierTemplate cacheResId = ((ResourceNode) re.getSource()).getIdentifierTemplate();
+						type.addField(new FieldDeclaration(cacheResId.getResourceStateType(), cacheResId.getResourceName(), getInitializer(cacheResId)));
+					}
+				}
+			}
+			Set<IdentifierTemplate> refs = new HashSet<>();
+			for (ChannelGenerator cg : model.getChannelGenerators()) {
+				DataTransferChannelGenerator c = (DataTransferChannelGenerator) cg;
+				if (c.getInputIdentifierTemplates().contains(rn.getIdentifierTemplate())) {
+					for (IdentifierTemplate id: c.getReferenceIdentifierTemplates()) {
+						if (!refs.contains(id) && !depends.contains(id)) {
+							refs.add(id);
+							String refResName = id.getResourceName();
+							fieldInitializer += refResName.toLowerCase() + ",";
+							f = true;
+						}
+					}
+				}
+			}
+			if (f) fieldInitializer = fieldInitializer.substring(0, fieldInitializer.length() - 1);
+			fieldInitializer += ")";
+			FieldDeclaration field = new FieldDeclaration(new Type(resourceName, resourceName), rn.getIdentifierTemplate().getResourceName());
+			mainType.addField(field);
+			
+			// Add a statement to instantiate each object to the main constructor.			
+			Block mainConstructorBody = mainConstructor.getBody();
+			if (mainConstructorBody == null) {
+				mainConstructorBody = new Block();
+				mainConstructor.setBody(mainConstructorBody);
+			}
+			mainConstructorBody.addStatement(rn.getIdentifierTemplate().getResourceName() + " = " + fieldInitializer + ";");
+			
+			// Declare a constructor, fields and update methods in the type of each resource.
+			MethodDeclaration constructor = new MethodDeclaration(resourceName, true);
+			Block block = new Block();
+			depends = new HashSet<>();
+			for (Edge e : rn.getOutEdges()) {
+				DataFlowEdge re = (DataFlowEdge) e;
+				IdentifierTemplate dstRes = ((ResourceNode) re.getDestination()).getIdentifierTemplate();
+				String dstResName = toTypeName(dstRes.getResourceName());
+				if (((PushPullAttribute) re.getAttribute()).getOptions().get(0) == PushPullValue.PUSH) {
+					// Declare a field to refer to the destination resource of push transfer.
+					depends.add(dstRes);
+					type.addField(new FieldDeclaration(new Type(dstResName, dstResName), dstRes.getResourceName()));
+					constructor.addParameter(new VariableDeclaration(new Type(dstResName, dstResName), dstRes.getResourceName()));
+					block.addStatement("this." + dstResName.toLowerCase() + " = " + dstResName.toLowerCase() + ";");
+				}
+			}
+			for (Edge e : rn.getInEdges()) {
+				DataFlowEdge re = (DataFlowEdge) e;
+				IdentifierTemplate srcRes = ((ResourceNode) re.getSource()).getIdentifierTemplate();
+				String srcResName = toTypeName(srcRes.getResourceName());
+				if (((PushPullAttribute) re.getAttribute()).getOptions().get(0) != PushPullValue.PUSH) {
+					// Declare a field to refer to the source resource of pull transfer.
+					depends.add(srcRes);
+					type.addField(new FieldDeclaration(new Type(srcResName, srcResName), srcRes.getResourceName()));
+					constructor.addParameter(new VariableDeclaration(new Type(srcResName, srcResName), srcRes.getResourceName()));
+					block.addStatement("this." + srcResName.toLowerCase() + " = " + srcResName.toLowerCase() + ";");
+				} else {
+					// Declare an update method in the type of the destination resource.
+					ArrayList<VariableDeclaration> vars = new ArrayList<>();
+					vars.add(new VariableDeclaration(srcRes.getResourceStateType(), srcRes.getResourceName()));
+					DataTransferChannelGenerator c = (DataTransferChannelGenerator) re.getChannelGenerator();
+					for (IdentifierTemplate ref: c.getReferenceIdentifierTemplates()) {
+						if (ref != rn.getIdentifierTemplate()) {
+							vars.add(new VariableDeclaration(ref.getResourceStateType(), ref.getResourceName()));
+						}
+					}
+					type.addMethod(new MethodDeclaration("update" + srcResName, false, typeVoid, vars));
+				}
+			}
+			// Declare a field to refer to the reference resource.
+			refs = new HashSet<>();
+			for (ChannelGenerator cg : model.getChannelGenerators()) {
+				DataTransferChannelGenerator c = (DataTransferChannelGenerator) cg;
+				if (c.getInputIdentifierTemplates().contains(rn.getIdentifierTemplate())) {
+					for (IdentifierTemplate id: c.getReferenceIdentifierTemplates()) {
+						if (!refs.contains(id) && !depends.contains(id)) {
+							refs.add(id);
+							String refResName = id.getResourceName();
+							refResName = toTypeName(refResName);
+							type.addField(new FieldDeclaration(new Type(refResName, refResName), id.getResourceName()));
+							constructor.addParameter(new VariableDeclaration(new Type(refResName, refResName), id.getResourceName()));						
+							block.addStatement("this." + id.getResourceName() + " = " + id.getResourceName() + ";");
+						}
+					}
+				}
+			}
+			constructor.setBody(block);
+			if (constructor.getParameters() != null)
+				type.addMethod(constructor);
+			
+			// Declare input methods in resources and the main type.
+			for (ChannelGenerator cg : model.getIOChannelGenerators()) {
+				for (ChannelMember cm : ((DataTransferChannelGenerator) cg).getOutputChannelMembers()) {
+					if (cm.getIdentifierTemplate().equals(rn.getIdentifierTemplate())) {
+						Expression message = cm.getStateTransition().getMessageExpression();
+						if (message instanceof Term) {
+							ArrayList<VariableDeclaration> params = new ArrayList<>();
+							for (Variable var: message.getVariables().values()) {
+								params.add(new VariableDeclaration(var.getType(), var.getName()));
+							}
+							MethodDeclaration input = new MethodDeclaration(
+									((Term) message).getSymbol().getImplName(),
+									false, typeVoid, params);
+							type.addMethod(input);
+							String str = ((Term) message).getSymbol().getImplName();
+							input = getMethod(mainType, str);
+							if (input == null) {
+								input = new MethodDeclaration(str, false, typeVoid, params);
+								mainType.addMethod(input);
+							} else {
+								// Add type to a parameter without type.
+								for (VariableDeclaration param: input.getParameters()) {
+									if (param.getType() == null) {
+										for (VariableDeclaration p: params) {
+											if (param.getName().equals(p.getName()) && p.getType() != null) {
+												param.setType(p.getType());
+											}
+										}
+									}
+								}
+							}
+						} else if (message instanceof Variable) {
+							MethodDeclaration input = new MethodDeclaration(((Variable) message).getName(), typeVoid);
+							type.addMethod(input);
+							String str = ((Variable) message).getName();
+							input = getMethod(mainType, str);
+							if (input == null) {
+								input = new MethodDeclaration(str, typeVoid);
+								mainType.addMethod(input);
+							}
+						}
+					}
+				}
+			}
+			
+			// Declare the field to store the state in the type of each resource.
+			if (((StoreAttribute) rn.getAttribute()).isStored()) {
+				IdentifierTemplate resId = rn.getIdentifierTemplate();
+				type.addField(new FieldDeclaration(resId.getResourceStateType(), "value", getInitializer(resId)));
+			}
+			
+			// Declare the getter method to obtain the state in the type of each resource.
+			type.addMethod(new MethodDeclaration("getValue",
+					rn.getIdentifierTemplate().getResourceStateType()));
+			
+			// Add compilation unit for each resource.
+			CompilationUnit cu = new CompilationUnit(type);
+			cu.addImport(new ImportDeclaration("java.util.*"));
+			codes.add(cu);
+		}
+
+		// Declare the Pair class.
+		boolean isCreatedPair = false;
+		for(ResourceNode rn : resources) {
+			if(isCreatedPair) continue;
+			if(model.getType("Pair").isAncestorOf(rn.getIdentifierTemplate().getResourceStateType())) {
+				TypeDeclaration type = new TypeDeclaration("Pair<T>");
+				type.addField(new FieldDeclaration(new Type("Double", "T"), "left"));
+				type.addField(new FieldDeclaration(new Type("Double", "T"), "right"));
+				
+				MethodDeclaration constructor = new MethodDeclaration("Pair", true);
+				constructor.addParameter(new VariableDeclaration(new Type("Double", "T"), "left"));
+				constructor.addParameter(new VariableDeclaration(new Type("Double", "T"), "right"));
+				Block block = new Block();
+				block.addStatement("this.left = left;");
+				block.addStatement("this.right = right;");
+				constructor.setBody(block);
+				type.addMethod(constructor);
+			
+				for(FieldDeclaration field : type.getFields()) {
+					MethodDeclaration getter = new MethodDeclaration(
+						"get" + toTypeName(field.getName()),
+						new Type("Double","T"));
+					getter.setBody(new Block());
+					getter.getBody().addStatement("return " + field.getName() + ";");
+					type.addMethod(getter);
+				}
+			
+				CompilationUnit	cu = new CompilationUnit(type);
+				cu.addImport(new ImportDeclaration("java.util.*"));
+				codes.add(cu);
+				
+				isCreatedPair = true;
+			}
+		}
+		
+		// Declare getter methods in the main type.
+		for (Node n : graph.getNodes()) {
+			ResourceNode rn = (ResourceNode) n;
+			MethodDeclaration getter = new MethodDeclaration(
+					"get" + toTypeName(rn.getIdentifierTemplate().getResourceName()),
+					rn.getIdentifierTemplate().getResourceStateType());
+			getter.setBody(new Block());
+			getter.getBody().addStatement(
+					"return " + rn.getIdentifierTemplate().getResourceName() + ".getValue();");
+			mainType.addMethod(getter);
+		}
+		
+		// ?????
+		HashSet<String> tmps = new HashSet<>();
+		HashSet<String> cont = new HashSet<>();
+		for (MethodDeclaration method : mainType.getMethods()) {
+			if (!tmps.contains(method.getName()))
+				tmps.add(method.getName());
+			else
+				cont.add(method.getName());
+		}
+		for (MethodDeclaration method : mainType.getMethods()) {
+			if (cont.contains(method.getName())) {
+				method.setName(method.getName() + toTypeName(method.getParameters().get(0).getName()));
+			}
+		}
+		return codes;
+	}
+
+	private static String toTypeName(String resName) {
+		return resName.substring(0, 1).toUpperCase() + resName.substring(1);
+	}
+
+	static private String getInitializer(IdentifierTemplate resId) {
+		Type stateType = resId.getResourceStateType();
+		String initializer = null;
+		if (resId.getInitialValue() != null) {
+			initializer = resId.getInitialValue().toImplementation(new String[] {""});
+		} else {
+			if (DataConstraintModel.typeList.isAncestorOf(stateType)) {
+				initializer = "new " + stateType.getImplementationTypeName() + "()";
+			} else if (DataConstraintModel.typeMap.isAncestorOf(stateType)) {
+				initializer = "new " + stateType.getImplementationTypeName() + "()";
+			}
+		}
+		return initializer;
+	}
+
+	static public ArrayList<String> getCodes(ArrayList<TypeDeclaration> codeTree) {
+		ArrayList<String> codes = new ArrayList<>();
+		for (TypeDeclaration type : codeTree) {
+			codes.add("public class " + type.getTypeName() + "{");
+			for (FieldDeclaration field : type.getFields()) {
+				if (type.getTypeName() != mainTypeName) {
+					String cons = "\t" + "private " + field.getType().getInterfaceTypeName() + " "
+							+ field.getName();
+					if (DataConstraintModel.isListType(field.getType()))
+						cons += " = new ArrayList<>()";
+					cons += ";";
+					codes.add(cons);
+				} else {
+					String cons = "\t" + "private " + field.getType().getInterfaceTypeName() + " "
+							+ field.getName() + " = new " + field.getType().getTypeName() + "(";
+					cons += ");";
+					codes.add(cons);
+				}
+			}
+			codes.add("");
+			for (MethodDeclaration method : type.getMethods()) {
+				String varstr = "\t" + "public " + method.getReturnType().getInterfaceTypeName() + " "
+						+ method.getName() + "(";
+				if (method.getParameters() != null) {
+					for (VariableDeclaration var : method.getParameters()) {
+						varstr += var.getType().getInterfaceTypeName() + " " + var.getName() + ",";
+					}
+					if (!method.getParameters().isEmpty())
+						varstr = varstr.substring(0, varstr.length() - 1);
+				}
+				if (method.getBody() != null) {
+					for (String str : method.getBody().getStatements()) {
+						codes.add("\t\t" + str + ";");
+					}
+				}
+				codes.add(varstr + ")" + "{");
+				codes.add("\t" + "}");
+				codes.add("");
+			}
+			codes.add("}");
+			codes.add("");
+		}
+		return codes;
+	}
+
+	static private ArrayList<ResourceNode> determineResourceOrder(DataFlowGraph graph) {
+		ArrayList<ResourceNode> resources = new ArrayList<>();
+		Set<ResourceNode> visited = new HashSet<>();
+		for (Node n : graph.getNodes()) {
+			ResourceNode rn = (ResourceNode) n;
+			topologicalSort(graph, rn, visited, resources);
+		}
+		return resources;
+	}
+	
+	static private void topologicalSort(DataFlowGraph graph, ResourceNode curNode, Set<ResourceNode> visited, List<ResourceNode> orderedList) {
+		if (visited.contains(curNode)) return;
+		visited.add(curNode);
+		for (Edge e : curNode.getInEdges()) {
+			DataFlowEdge re = (DataFlowEdge) e;
+			if (((PushPullAttribute) re.getAttribute()).getOptions().get(0) == PushPullValue.PUSH) {
+				topologicalSort(graph, (ResourceNode) re.getSource(), visited, orderedList);
+			}
+		}
+		for (Edge e : curNode.getOutEdges()) {
+			DataFlowEdge re = (DataFlowEdge) e;
+			if (((PushPullAttribute) re.getAttribute()).getOptions().get(0) != PushPullValue.PUSH) {
+				topologicalSort(graph, (ResourceNode) re.getDestination(), visited, orderedList);
+			}
+		}
+		for (Node n: graph.getNodes()) {		// for reference resources.
+			ResourceNode rn = (ResourceNode) n;
+			for (Edge e : rn.getOutEdges()) {
+				DataFlowEdge re = (DataFlowEdge) e;
+				for (ChannelMember m: re.getChannelGenerator().getReferenceChannelMembers()) {
+					if (m.getIdentifierTemplate() == curNode.getIdentifierTemplate()) {
+						topologicalSort(graph, rn, visited, orderedList);
+					}
+				}
+			}
+		}
+		orderedList.add(0, curNode);
+	}
+
+	private static MethodDeclaration getMethod(TypeDeclaration type, String methodName) {
+		for (MethodDeclaration m: type.getMethods()) {
+			if (m.getName().equals(methodName)) return m;
+		}
+		return null;
+	}
+
+	static public IResourceStateAccessor pushAccessor = new IResourceStateAccessor() {
+		@Override
+		public Expression getCurrentStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			if (target.equals(from)) {
+				return new Field("value",
+						target.getResourceStateType() != null ? target.getResourceStateType()
+								: DataConstraintModel.typeInt);
+			}
+			// for reference channel member
+			return new Parameter(target.getResourceName(),
+					target.getResourceStateType() != null ? target.getResourceStateType()
+							: DataConstraintModel.typeInt);
+		}
+
+		@Override
+		public Expression getNextStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			return new Parameter(target.getResourceName(),
+					target.getResourceStateType() != null ? target.getResourceStateType()
+							: DataConstraintModel.typeInt);
+		}
+	};
+	static public IResourceStateAccessor pullAccessor = new IResourceStateAccessor() {
+		@Override
+		public Expression getCurrentStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			if (target.equals(from)) {
+				return new Field("value",
+						target.getResourceStateType() != null ? target.getResourceStateType()
+								: DataConstraintModel.typeInt);
+			}
+			// for reference channel member
+			Term getter = new Term(new Symbol("getValue", 1, Symbol.Type.METHOD));
+			getter.addChild(new Field(target.getResourceName(), target.getResourceStateType()));
+			return getter;
+		}
+
+		@Override
+		public Expression getNextStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			Term getter = new Term(new Symbol("getValue", 1, Symbol.Type.METHOD));
+			getter.addChild(new Field(target.getResourceName(), target.getResourceStateType()));
+			return getter;
+		}
+	};
+}

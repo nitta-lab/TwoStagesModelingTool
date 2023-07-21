@@ -1,0 +1,7 @@
+channel CIO{
+    out aUa(a, input(x:Int)) == x
+}
+channel C1{
+    in aUa(a, update(x)) == x
+    out aUb(b, update(x)) == x + 3
+}

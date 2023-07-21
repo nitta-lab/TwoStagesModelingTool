@@ -1,0 +1,32 @@
+channel CIO {
+	out force(f:Double, action(x:Double)) == x
+	out time(t:Double, action(x)) == t + 0.01
+	out force(f, e) == x
+	out time(t, e) == t + 0.01
+}
+
+channel CIO2 {
+	out velocity(v:Double, setVel(x:Double)) == x
+	out velocity(v, e) == x
+}
+
+channel CIO3 {
+	out mass(m:Double, setMass(x:Double)) == x
+	out mass(m, e) == m
+}
+
+channel C1 {
+	in force(f, update1(y, z)) == y
+	in mass(m, update1(y, z)) == z
+	out acceleration(a: Double, update1(y, z)) == y / z
+}
+
+channel C2 {
+	in acceleration(a, update2(z)) == z
+	out velocity(v:Double, update2(z)) == v + 0.01 * z
+}
+
+channel C3 {
+	in velocity(v, update3(u)) == u
+	out position(p:Double, update3(u)) == p + 0.01 * u
+}

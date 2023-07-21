@@ -1,0 +1,70 @@
+init {
+	force := pair(0.0, 0.0)
+	time := 0.0
+	move := pair(0.0, 0.0)
+	mass := 1.0
+	ground := true
+	acceleration := pair(0.0, 0.0)
+	velocity := pair(0.0, 0.0)
+	onground := true
+	position := pair(0.0, 0.0)
+	clear := false
+	gameover := false
+}
+channel CIO {
+    out force(f:Pair, gravity(y:Double)) == pair(0.0, y)
+    out time(t:Double, gravity(y)) == t + 0.01
+}
+channel CIO2 {
+    out movex(x:Double, run(x2:Double)) == x2
+}
+channel CIO3 {
+    out movey(y:Double, jump(y2:Double)) == y2 
+}
+channel CIO4 {
+    out mass(m:Double, setMass(x:Double)) == x
+}
+channel CIO5 {
+    out ground(g:Bool, openHole) == false
+    out ground(g, closeHole) == true
+}
+channel C1 {
+    ref onground(o, update1(f2, m2, o))
+    in force(f, update1(f2, m2, o)) == f2
+    in mass(m, update1(f2, m2, o)) == m2
+    out acceleration(a:Pair, update1(f2, m2, o)) == if(o, pair(left(f2) / m2, 0.0), pair(left(f2) / m2, right(f2) / m2))
+}
+channel C2 {
+    ref onground(o, update3(a2, o))
+    in acceleration(a, update3(a2, o)) == a2
+    out velocity(v:Pair, update3(a2, o)) == if(and(o, lt(right(v), 0.0)), 
+                                                    pair(left(v) + 0.01 * left(a2), 0.0), 
+                                                    pair(left(v) + 0.01 * left(a2), right(v) + 0.01 * right(a2)))
+}
+channel C3 {
+    ref onground(o, update4(x2, o))
+    in movex(x, update4(x2, o)) == x2
+    out velocity(v:Pair, update4(x2, o)) == if(o, pair(x2, right(v)), v)
+}
+channel C4 {
+    ref onground(o, update5(x2, o))
+    in movey(y, update5(y2, o)) == y2
+    out velocity(v:Pair, update5(y2, o)) == if(o, pair(left(v), y2), v)
+}
+channel C5 {
+    in velocity(v, update6(v2, g)) == v2
+    ref ground(g, update6(v2, g))
+    out position(p:Pair, update6(v2, g)) == if(and(eq(g, true), lt(right(p) + 0.01 * right(v2), 0.0)), 
+                                                    pair(left(p) + 0.01 * left(v2), 0.0), 
+                                                    pair(left(p) + 0.01 * left(v2), right(p) + 0.01 * right(v2)))
+}
+channel C6 {
+    in position(p, update2(p2, g2)) == p2
+    in ground(g, update2(p2, g2)) == g2
+    out onground(o:Bool, update2(p2, g2)) == and(eq(g2, true), le(right(p2), 0.0))
+}
+channel C7 {
+    in position(p, update7(p2)) == p2
+    out clear(c:Bool, update7(p2)) == if(gt(left(p2), 100.0), true, false)
+    out gameover(go:Bool, update7(p2)) == if(lt(right(p2), -1.0), true, false)
+}

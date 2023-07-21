@@ -1,0 +1,13 @@
+channel CIO{
+	out r1(x1:Int, set1(y1:Int)) == y1
+	out r1(x1, e) == x1
+}
+channel CIO2{
+	out r2(x2:Int, set2(y2:Int)) == y2
+	out r2(x2, e) == x2
+}
+channel C1{
+	in r1(x1, update(x1:Int, y1:Int, x2:Int, y2:Int)) == y1
+	in r2(x2, update(x1, y1, x2, y2)) == y2
+	out r3(x3:Int, update(x1, y1, x2, y2)) == x1 + y1 + x2 + y2
+}

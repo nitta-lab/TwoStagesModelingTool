@@ -1,0 +1,47 @@
+channel a_Tweet {
+	out a_tweets(l:List, a_tweet(t:Str, time:Long)) == cons(tuple(time, t), l)
+}
+
+channel a_Follow {
+	out a_following(f:List, a_follow(u:Int)) == cons(u, f)
+}
+
+channel a_Home {
+	in a_tweets(la1, update_a(f2, la2, lb2, lc2)) == la2
+	in b_tweets(lb1, update_a(f2, la2, lb2, lc2)) == lb2
+	in c_tweets(lc1, update_a(f2, la2, lb2, lc2)) == lc2
+	in a_following(f, update_a(f2, la2, lb2, lc2)) == f2
+	out a_timeline(t:List, update_a(f2, la2, lb2, lc2)) == merge(la2, if(contains(f2,2), merge(lb2, if(contains(f2,3), lc2, nil)), if(contains(f2,3), lc2, nil)))
+}
+
+channel b_Tweet {
+	out b_tweets(l:List, b_tweet(t:Str, time:Long)) == cons(tuple(time, t), l)
+}
+
+channel b_Follow {
+	out b_following(f:List, b_follow(u:Int)) == cons(u, f)
+}
+
+channel b_Home {
+	in a_tweets(la1, update_b(f2, la2, lb2, lc2)) == la2
+	in b_tweets(lb1, update_b(f2, la2, lb2, lc2)) == lb2
+	in c_tweets(lc1, update_b(f2, la2, lb2, lc2)) == lc2
+	in b_following(f, update_b(f2, la2, lb2, lc2)) == f2
+	out b_timeline(t:List, update_b(f2, la2, lb2, lc2)) == merge(lb2, if(contains(f2,1), merge(la2, if(contains(f2,3), lc2, nil)), if(contains(f2,3), lc2, nil)))
+}
+
+channel c_Tweet {
+	out c_tweets(l:List, c_tweet(t:Str, time:Long)) == cons(tuple(time, t), l)
+}
+
+channel c_Follow {
+	out c_following(f:List, c_follow(u:Int)) == cons(u, f)
+}
+
+channel c_Home {
+	in a_tweets(la1, update_c(f2, la2, lb2, lc2)) == la2
+	in b_tweets(lb1, update_c(f2, la2, lb2, lc2)) == lb2
+	in c_tweets(lc1, update_c(f2, la2, lb2, lc2)) == lc2
+	in c_following(f, update_c(f2, la2, lb2, lc2)) == f2
+	out c_timeline(t:List, update_c(f2, la2, lb2, lc2)) == merge(lc2, if(contains(f2,1), merge(la2, if(contains(f2,2), lb2, nil)), if(contains(f2,2), lb2, nil)))
+}

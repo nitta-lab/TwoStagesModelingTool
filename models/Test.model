@@ -1,0 +1,9 @@
+channel CIO {
+    out a(x:Int, set(n:Int)) == n
+}
+
+channel C1 {
+	in a(x, update(y)) == y
+    out b(z, update(y)) == y + 1
+    out c(v, update(y)) == v + y
+}

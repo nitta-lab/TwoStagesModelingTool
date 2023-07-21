@@ -1,0 +1,33 @@
+channel C_CustomerAOff_In {
+	out customerA_off(c:String, setOff(x)) == x
+	out customerA_off(c, e) == c
+}
+
+channel C_CustomerBOff_In {
+	out customerB_off(c:String, setOff(x)) == x
+	out customerB_off(c, e) == c
+}
+
+channel C_CompanyC1Add_In {
+	out companyC1_add(a:String, setAdd(y)) == y
+	out companyC1_add(a, e) == a
+}
+
+channel C_CompanyC2Add_In {
+	out companyC2_add(a:String, setAdd(y)) == y
+	out companyC2_add(a, e) == a
+}
+
+channel CA {
+	in customerA_off(c, sync(z, u, v)) == z
+	in companyC1_add(a1, sync(z, u, v)) == u
+	in companyC2_add(a2, sync(z, u, v)) == v
+	out customerA_add(a3:String, sync(z, u, v)) == if(eq(z, C1), u, if(eq(z, C2), v, null))
+}
+
+channel CB {
+	in customerB_off(c, sync(z, u, v)) == z
+	in companyC1_add(a1, sync(z, u, v)) == u
+	in companyC2_add(a2, sync(z, u, v)) == v
+	out customerB_add(a3:String, sync(z, u, v)) == if(eq(z, C1), u, if(eq(z, C2), v, null))
+}

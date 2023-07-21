@@ -1,0 +1,12 @@
+channel turnA{
+	ref handsB(b:List, drawA(target:Int, guess:Int, b, d))
+	ref deck(d:List, drawA(target, guess, b, d))
+	out handsA(a:List, drawA(target, guess, b, d)) == if(eq(get(b, target), guess), cons(tuple(fst(head(d)), false), a), cons(tuple(fst(head(d)), true), a))
+	out handsB(a:List, drawA(target, guess, b, d)) == if(eq(get(b, target), guess), set(a, target, tuple(fst(get(a, target)), true)), a)
+	out deck(t:List, drawA(target, guess, b, d)) == tail(d)	
+}
+channel turnAA{
+	ref handsB(b:List, selectA(target:Int, guess:Int, attacker:Int, b))
+	out handsA(a:List, selectA(target, guess, attacker, b)) == if(eq(get(b, target), guess), a, set(a, attacker, tuple(fst(get(a, attacker)), true)))
+	out handsB(a:List, selectA(target, guess, attacker, b)) == if(eq(get(b, target), guess), set(a, target, tuple(fst(get(a, target)), true)), a)	
+}
