@@ -18,7 +18,7 @@ import application.editor.stages.ControlFlowDelegationStage;
  * the window has a button group for swichting layers in the control-flow-modeling.
  */
 public class ShowFlowLayerWindow extends JDialog implements IStageChangeListener {
-	private String title = "ShowFlowLayerWindow";	
+	private String title = "Flow Layer";	
 	private JCheckBox dataFlowCheckBox = null;
 	private JCheckBox pushFlowCheckBox = null;
 	private JCheckBox pullFlowCheckBox = null;

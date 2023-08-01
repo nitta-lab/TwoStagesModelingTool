@@ -53,6 +53,12 @@ import parser.exceptions.WrongLHSExpression;
 import parser.exceptions.WrongRHSExpression;
 import parser.ParserDTRAM;
 
+/**
+ * Main editor for all stages
+ * 
+ * @author Nitta
+ *
+ */
 public class Editor {
 	public DataTransferModel model = null;
 	public mxGraph graph = null;

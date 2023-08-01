@@ -27,8 +27,6 @@ import application.editor.Editor;
 public class ApplicationMenuBar extends JMenuBar {
 	private static final long serialVersionUID = 4811536194182272888L;	
 	
-	private Editor editor = null;
-
 	private ApplicationWindow applicationWindow = null;
 	
 	private NewResourceAction newResourceAction = null;
@@ -44,7 +42,6 @@ public class ApplicationMenuBar extends JMenuBar {
 		
 	public ApplicationMenuBar(ApplicationWindow applicationWindow) {
 		this.applicationWindow = applicationWindow;
-		this.editor = editor;
 		JMenu newMenu = new JMenu("New");
 		
 		newMenu.add(new NewModelAction(applicationWindow));

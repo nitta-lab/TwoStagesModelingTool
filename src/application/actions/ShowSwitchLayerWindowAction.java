@@ -6,7 +6,7 @@ import application.ApplicationWindow;
 
 public class ShowSwitchLayerWindowAction extends AbstractSystemAction {
 	public ShowSwitchLayerWindowAction(ApplicationWindow frame) {
-		super("Show Flow", frame);
+		super("Show Flow Layer", frame);
 	}
 	
 	@Override

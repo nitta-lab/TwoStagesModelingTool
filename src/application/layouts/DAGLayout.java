@@ -20,26 +20,12 @@ import models.dataConstraintModel.ChannelGenerator;
 import models.dataConstraintModel.IdentifierTemplate;
 import models.dataFlowModel.ResourceNodeAttribute;
 
-/*************************************************************
- * DAG-Layout sorting algorithm.
- */
 public class DAGLayout extends mxGraphLayout {
 
-	/*************************************************************
-	 * [ *constructor]
-	 /*************************************************************
-	  * 
-	  * @param cell
-	  */
-	public DAGLayout(mxGraph cell) {
-		super(cell);
+	public DAGLayout(mxGraph graph) {
+		super(graph);
 	}
 
-	/*************************************************************
-	 * [ *public ]
- 	/*************************************************************
- 	 * Executing a layout sorting algorithm.
-	 */
 	@Override
 	public void execute(Object parent) {
 		mxIGraphModel model = graph.getModel();
@@ -65,7 +51,6 @@ public class DAGLayout extends mxGraphLayout {
 				}
 			}
 			
-			// ���בւ�
 			sort(map, 0, false);
 			
 			// layout

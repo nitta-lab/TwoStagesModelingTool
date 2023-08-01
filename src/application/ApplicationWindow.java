@@ -11,6 +11,12 @@ import application.editor.Editor;
 import application.views.NavigationWindow;
 import application.views.controlFlowDelegation.ShowFlowLayerWindow;
 
+/**
+ * Application main window
+ * 
+ * @author Nitta
+ *
+ */
 public class ApplicationWindow extends JFrame {
 	private static final long serialVersionUID = -8690140317781055614L;
 	public static final String title = "Visual Modeling Tool";
