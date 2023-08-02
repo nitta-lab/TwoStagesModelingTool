@@ -9,7 +9,7 @@ import com.mxgraph.view.mxGraph;
 
 import application.editor.Editor;
 import application.views.NavigationWindow;
-import application.views.controlFlowDelegation.ShowFlowLayerWindow;
+import application.views.controlFlowDelegation.FlowLayerWindow;
 
 /**
  * Application main window
@@ -27,7 +27,7 @@ public class ApplicationWindow extends JFrame {
 
 	private ApplicationMenuBar menuBar = null;
 	private NavigationWindow navigationWindow = null;
-	private ShowFlowLayerWindow showFlowLayerWindow = null;
+	private FlowLayerWindow showFlowLayerWindow = null;
 
 	public ApplicationWindow() {
 		setTitle(title);
@@ -61,7 +61,7 @@ public class ApplicationWindow extends JFrame {
 		navigationWindow = new NavigationWindow(this, editor);
 		navigationWindow.setVisible(true);
 		
-		showFlowLayerWindow = new ShowFlowLayerWindow(this);
+		showFlowLayerWindow = new FlowLayerWindow(this);
 		showFlowLayerWindow.setVisible(false);
 		
 		editor.addStageChangeListener(navigationWindow);

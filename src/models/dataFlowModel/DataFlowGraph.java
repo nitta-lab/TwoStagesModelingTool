@@ -46,8 +46,8 @@ public class DataFlowGraph extends DirectedGraph implements IFlowGraph {
 	}
 	
 	public ResourceNode getResouceNode(IdentifierTemplate identifierTemplate) {
-			if(nodeMap.get(identifierTemplate) == null) throw new NullPointerException(identifierTemplate.getResourceName() + "was not found.");
-			return nodeMap.get(identifierTemplate);
+//		if(nodeMap.get(identifierTemplate) == null) throw new NullPointerException(identifierTemplate.getResourceName() + " was not found.");	// Because with this statement, the original JumpGame.model cannot be read.
+		return nodeMap.get(identifierTemplate);
 	}
 
 	@Override
