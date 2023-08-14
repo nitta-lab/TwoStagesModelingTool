@@ -14,16 +14,16 @@ public class SimplifiedDataFlowModelTest {
 	public void test() {
 		// Construct a data-flow architecture model.
 		DataTransferModel model = new DataTransferModel();
-		IdentifierTemplate payment = new IdentifierTemplate("payment", 0);	// an identifier template to specify the payment resource
-		IdentifierTemplate loyalty = new IdentifierTemplate("loyalty", 0);	// an identifier template to specify the loyalty resource
-		IdentifierTemplate history = new IdentifierTemplate("history", 0);	// an identifier template to specify the payment history resource
-		IdentifierTemplate total = new IdentifierTemplate("total", 0);		// an identifier template to specify the total payment resource
+		ResourcePath payment = new ResourcePath("payment", 0);	// a resource to specify the payment resource
+		ResourcePath loyalty = new ResourcePath("loyalty", 0);	// a resource to specify the loyalty resource
+		ResourcePath history = new ResourcePath("history", 0);	// a resource to specify the payment history resource
+		ResourcePath total = new ResourcePath("total", 0);		// a resource to specify the total payment resource
 		
 		// === cin ===
 		//
 		// payment(p1, purchase(x)) == x
 		//
-		DataTransferChannelGenerator cin = new DataTransferChannelGenerator("cin");
+		DataTransferChannel cin = new DataTransferChannel("cin");
 		ChannelMember cin_payment = new ChannelMember(payment);
 		cin.addChannelMember(cin_payment);
 		assertEquals(cin.getChannelMembers().size(), 1);
@@ -33,7 +33,7 @@ public class SimplifiedDataFlowModelTest {
 		// payment(p1, update1(y)) == y
 		// loyalty(l, update1(y)) == floor(y * 0.05)
 		//
-		DataTransferChannelGenerator c1 = new DataTransferChannelGenerator("c1");
+		DataTransferChannel c1 = new DataTransferChannel("c1");
 		ChannelMember c1_payment = new ChannelMember(payment);
 		ChannelMember c1_loyalty = new ChannelMember(loyalty);
 		c1.addChannelMemberAsInput(c1_payment);
@@ -47,7 +47,7 @@ public class SimplifiedDataFlowModelTest {
 		// payment(p1, update2(z)) == z
 		// history(h, update2(z)) == cons(z, h)
 		//
-		DataTransferChannelGenerator c2 = new DataTransferChannelGenerator("c2");
+		DataTransferChannel c2 = new DataTransferChannel("c2");
 		ChannelMember c2_payment = new ChannelMember(payment);
 		ChannelMember c2_history = new ChannelMember(history);
 		c2.addChannelMemberAsInput(c2_payment);
@@ -61,7 +61,7 @@ public class SimplifiedDataFlowModelTest {
 		// history(h, update3(u)) == u
 		// total(t, update3(u)) == sum(u)
 		//
-		DataTransferChannelGenerator c3 = new DataTransferChannelGenerator("c3");
+		DataTransferChannel c3 = new DataTransferChannel("c3");
 		ChannelMember c3_history = new ChannelMember(history);
 		ChannelMember c3_total = new ChannelMember(total);
 		c3.addChannelMemberAsInput(c3_history);
@@ -71,15 +71,15 @@ public class SimplifiedDataFlowModelTest {
 		assertEquals(c3.getOutputChannelMembers().size(), 1);
 		
 		// Construct a data-flow architecture model.
-		model.addIOChannelGenerator(cin);
-		model.addChannelGenerator(c1);
-		model.addChannelGenerator(c2);
-		model.addChannelGenerator(c3);
+		model.addIOChannel(cin);
+		model.addChannel(c1);
+		model.addChannel(c2);
+		model.addChannel(c3);
 		
 		// Check the model.
-		assertEquals(4, model.getIdentifierTemplates().size());
-		assertEquals(1, model.getIOChannelGenerators().size());
-		assertEquals(3, model.getChannelGenerators().size());
+		assertEquals(4, model.getResourcePaths().size());
+		assertEquals(1, model.getIOChannels().size());
+		assertEquals(3, model.getChannels().size());
 		
 		// Extract the resource dependency graph.
 		DataFlowGraph resourceDependencyGraph = model.getDataFlowGraph();

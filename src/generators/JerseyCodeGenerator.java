@@ -21,13 +21,13 @@ import models.algebra.Symbol;
 import models.algebra.Term;
 import models.algebra.Type;
 import models.algebra.Variable;
-import models.dataConstraintModel.ChannelGenerator;
+import models.dataConstraintModel.Channel;
 import models.dataConstraintModel.ChannelMember;
 import models.dataConstraintModel.DataConstraintModel;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.ResourcePath;
 import models.dataFlowModel.DataTransferModel;
-import models.dataFlowModel.DataTransferChannelGenerator;
-import models.dataFlowModel.DataTransferChannelGenerator.IResourceStateAccessor;
+import models.dataFlowModel.DataTransferChannel;
+import models.dataFlowModel.DataTransferChannel.IResourceStateAccessor;
 import models.dataFlowModel.PushPullAttribute;
 import models.dataFlowModel.PushPullValue;
 import models.dataFlowModel.DataFlowEdge;
@@ -66,13 +66,13 @@ public class JerseyCodeGenerator {
 
 		for (Node n : resources) {
 			ResourceNode rn = (ResourceNode) n;			
-			String resourceName = rn.getIdentifierTemplate().getResourceName().substring(0, 1).toUpperCase()
-					+ rn.getIdentifierTemplate().getResourceName().substring(1);
+			String resourceName = rn.getResource().getResourceName().substring(0, 1).toUpperCase()
+					+ rn.getResource().getResourceName().substring(1);
 
 			// Declare the field to refer each resource in the main type.
 			TypeDeclaration type = new TypeDeclaration(resourceName);
 			type.addAnnotation(new Annotation("Component"));
-			type.addAnnotation(new Annotation("Path", "\"/" + rn.getIdentifierTemplate().getResourceName() + "\""));
+			type.addAnnotation(new Annotation("Path", "\"/" + rn.getResource().getResourceName() + "\""));
 			
 			// Declare a client field and update methods from other resources.
 			boolean bDeclareClientField = false;
@@ -86,7 +86,7 @@ public class JerseyCodeGenerator {
 			}
 			for (Edge e : rn.getInEdges()) {
 				DataFlowEdge re = (DataFlowEdge) e;
-				IdentifierTemplate srcRes = ((ResourceNode) re.getSource()).getIdentifierTemplate();
+				ResourcePath srcRes = ((ResourceNode) re.getSource()).getResource();
 				String srcResName = srcRes.getResourceName().substring(0, 1).toUpperCase() + srcRes.getResourceName().substring(1);
 				if (((PushPullAttribute) re.getAttribute()).getOptions().get(0) != PushPullValue.PUSH) {
 					if (!bDeclareClientField) {
@@ -102,16 +102,16 @@ public class JerseyCodeGenerator {
 					VariableDeclaration param = new VariableDeclaration(srcType, srcName);
 					param.addAnnotation(new Annotation("FormParam", "\"" + srcName + "\""));
 					vars.add(param);
-					for (IdentifierTemplate refRes: re.getChannelGenerator().getReferenceIdentifierTemplates()) {
-						if (refRes != rn.getIdentifierTemplate()) {
+					for (ResourcePath refRes: re.getChannel().getReferenceResources()) {
+						if (refRes != rn.getResource()) {
 							param = new VariableDeclaration(refRes.getResourceStateType(), refRes.getResourceName());
 							param.addAnnotation(new Annotation("FormParam", "\"" + refRes.getResourceName() + "\""));
 							vars.add(param);						
 						}
 					}
 					MethodDeclaration update = new MethodDeclaration("update" + srcResName, false, typeVoid, vars);
-					for (ChannelMember cm: re.getChannelGenerator().getOutputChannelMembers()) {
-						if (cm.getIdentifierTemplate() == rn.getIdentifierTemplate()) {
+					for (ChannelMember cm: re.getChannel().getOutputChannelMembers()) {
+						if (cm.getResource() == rn.getResource()) {
 							if (cm.getStateTransition().isRightUnary()) {
 								update.addAnnotation(new Annotation("PUT"));
 							} else {
@@ -123,7 +123,7 @@ public class JerseyCodeGenerator {
 						 // For each source resource, a child resource is defined in the destination resource so that its state can be updated separately.
 						update.addAnnotation(new Annotation("Path", "\"/" + srcName + "\""));
 						// Declare a field to cash the state of the source resource in the type of the destination resource.
-						IdentifierTemplate cashResId = ((ResourceNode) re.getSource()).getIdentifierTemplate();
+						ResourcePath cashResId = ((ResourceNode) re.getSource()).getResource();
 						type.addField(new FieldDeclaration(cashResId.getResourceStateType(), srcName, getInitializer(cashResId)));
 					}
 					type.addMethod(update);
@@ -149,9 +149,9 @@ public class JerseyCodeGenerator {
 //			}
 			
 			// Declare input methods in resources.
-			for (ChannelGenerator cg : model.getIOChannelGenerators()) {
-				for (ChannelMember cm : ((DataTransferChannelGenerator) cg).getOutputChannelMembers()) {
-					if (cm.getIdentifierTemplate().equals(rn.getIdentifierTemplate())) {
+			for (Channel cg : model.getIOChannels()) {
+				for (ChannelMember cm : ((DataTransferChannel) cg).getOutputChannelMembers()) {
+					if (cm.getResource().equals(rn.getResource())) {
 						Expression message = cm.getStateTransition().getMessageExpression();
 						if (message.getClass() == Term.class) {
 							ArrayList<VariableDeclaration> params = new ArrayList<>();
@@ -187,12 +187,12 @@ public class JerseyCodeGenerator {
 			
 			// Declare the field to store the state in the type of each resource.
 			if (((StoreAttribute) rn.getAttribute()).isStored()) {
-				IdentifierTemplate resId = rn.getIdentifierTemplate();
+				ResourcePath resId = rn.getResource();
 				type.addField(new FieldDeclaration(resId.getResourceStateType(), "value", getInitializer(resId)));
 			}
 			
 			// Declare the getter method to obtain the state in the type of each resource.
-			MethodDeclaration getter = new MethodDeclaration("getValue", rn.getIdentifierTemplate().getResourceStateType());
+			MethodDeclaration getter = new MethodDeclaration("getValue", rn.getResource().getResourceStateType());
 			getter.addAnnotation(new Annotation("Produces", "MediaType.APPLICATION_JSON"));
 			getter.addAnnotation(new Annotation("GET"));
 			type.addMethod(getter);
@@ -214,7 +214,7 @@ public class JerseyCodeGenerator {
 		for(Node n : resources) {
 			ResourceNode rn = (ResourceNode) n;
 			if(isCreatedPair) continue;
-			if(model.getType("Pair").isAncestorOf(rn.getIdentifierTemplate().getResourceStateType())) {
+			if(model.getType("Pair").isAncestorOf(rn.getResource().getResourceStateType())) {
 				TypeDeclaration type = new TypeDeclaration("Pair<T>");
 				type.addField(new FieldDeclaration(new Type("Double", "T"), "left"));
 				type.addField(new FieldDeclaration(new Type("Double", "T"), "right"));
@@ -254,7 +254,7 @@ public class JerseyCodeGenerator {
 		return codes;
 	}
 
-	private static String getInitializer(IdentifierTemplate resId) {
+	private static String getInitializer(ResourcePath resId) {
 		Type stateType = resId.getResourceStateType();
 		String initializer = null;
 		if (resId.getInitialValue() != null) {
@@ -316,7 +316,7 @@ public class JerseyCodeGenerator {
 
 	static public IResourceStateAccessor pushAccessor = new IResourceStateAccessor() {
 		@Override
-		public Expression getCurrentStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+		public Expression getCurrentStateAccessorFor(ResourcePath target, ResourcePath from) {
 			if (target.equals(from)) {
 				return new Field("value",
 						target.getResourceStateType() != null ? target.getResourceStateType()
@@ -326,7 +326,7 @@ public class JerseyCodeGenerator {
 		}
 
 		@Override
-		public Expression getNextStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+		public Expression getNextStateAccessorFor(ResourcePath target, ResourcePath from) {
 			return new Parameter(target.getResourceName(),
 					target.getResourceStateType() != null ? target.getResourceStateType()
 							: DataConstraintModel.typeInt);
@@ -334,7 +334,7 @@ public class JerseyCodeGenerator {
 	};
 	static public IResourceStateAccessor pullAccessor = new IResourceStateAccessor() {
 		@Override
-		public Expression getCurrentStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+		public Expression getCurrentStateAccessorFor(ResourcePath target, ResourcePath from) {
 			if (target.equals(from)) {
 				return new Field("value",
 						target.getResourceStateType() != null ? target.getResourceStateType()
@@ -347,7 +347,7 @@ public class JerseyCodeGenerator {
 		}
 
 		@Override
-		public Expression getNextStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+		public Expression getNextStateAccessorFor(ResourcePath target, ResourcePath from) {
 			return new Parameter(target.getResourceName(),
 					target.getResourceStateType() != null ? target.getResourceStateType()
 							: DataConstraintModel.typeInt);

@@ -8,9 +8,9 @@ import models.algebra.Type;
 import parser.Parser;
 
 public class DataConstraintModel {
-	protected HashMap<String, IdentifierTemplate> identifierTemplates = null;
-	protected HashMap<String, ChannelGenerator> channelGenerators = null;
-	protected HashMap<String, ChannelGenerator> ioChannelGenerators = null;
+	protected HashMap<String, ResourcePath> resourcePaths = null;
+	protected HashMap<String, Channel> channels = null;
+	protected HashMap<String, Channel> ioChannels = null;
 	protected HashMap<String, Type> types = null;
 	protected HashMap<String, Symbol> symbols = null;
 	public static final Type typeInt = new Type("Int", "int");
@@ -182,9 +182,9 @@ public class DataConstraintModel {
 	}
 	
 	public DataConstraintModel() {
-		identifierTemplates = new HashMap<>();
-		channelGenerators = new HashMap<>();
-		ioChannelGenerators = new HashMap<>();
+		resourcePaths = new HashMap<>();
+		channels = new HashMap<>();
+		ioChannels = new HashMap<>();
 		types = new HashMap<>();
 		addType(typeInt);
 		addType(typeLong);
@@ -234,87 +234,87 @@ public class DataConstraintModel {
 		addSymbol(lookup);
 	}
 	
-	public Collection<IdentifierTemplate> getIdentifierTemplates() {
-		return identifierTemplates.values();
+	public Collection<ResourcePath> getResourcePaths() {
+		return resourcePaths.values();
 	}
 	
-	public IdentifierTemplate getIdentifierTemplate(String resourceName) {
-		return identifierTemplates.get(resourceName);
+	public ResourcePath getResourcePath(String resourceName) {
+		return resourcePaths.get(resourceName);
 	}
 	
-	public void addIdentifierTemplate(IdentifierTemplate identifierTemplate) {
-		identifierTemplates.put(identifierTemplate.getResourceName(), identifierTemplate);
+	public void addResourcePath(ResourcePath resourcePath) {
+		resourcePaths.put(resourcePath.getResourceName(), resourcePath);
 	}
 	
-	public void setIdentifierTemplates(HashMap<String, IdentifierTemplate> identifierTemplates) {
-		this.identifierTemplates = identifierTemplates;
+	public void setResourcePaths(HashMap<String, ResourcePath> resourcePaths) {
+		this.resourcePaths = resourcePaths;
 	}
 	
-	public void removeIdentifierTemplate(String resourceName) {
-		IdentifierTemplate id = identifierTemplates.get(resourceName);
-		identifierTemplates.remove(resourceName);
-		for (ChannelGenerator ch: channelGenerators.values()) {
+	public void removeResourcePath(String resourceName) {
+		ResourcePath id = resourcePaths.get(resourceName);
+		resourcePaths.remove(resourceName);
+		for (Channel ch: channels.values()) {
 			ch.removeChannelMember(id);
 		}
-		for (ChannelGenerator ch: ioChannelGenerators.values()) {
+		for (Channel ch: ioChannels.values()) {
 			ch.removeChannelMember(id);
 		}
 	}
 
-	public Collection<ChannelGenerator> getChannelGenerators() {
-		return channelGenerators.values();
+	public Collection<Channel> getChannels() {
+		return channels.values();
 	}
 		
-	public ChannelGenerator getChannelGenerator(String channelName) {
-		return channelGenerators.get(channelName);
+	public Channel getChannel(String channelName) {
+		return channels.get(channelName);
 	}
 	
-	public void setChannelGenerators(HashMap<String, ChannelGenerator> channelGenerators) {
-		this.channelGenerators = channelGenerators;
-		for (ChannelGenerator g: channelGenerators.values()) {
-			for (IdentifierTemplate id: g.getIdentifierTemplates()) {
-				identifierTemplates.put(id.getResourceName(), id);				
+	public void setChannels(HashMap<String, Channel> channels) {
+		this.channels = channels;
+		for (Channel g: channels.values()) {
+			for (ResourcePath id: g.getResources()) {
+				resourcePaths.put(id.getResourceName(), id);				
 			}
 		}
 	}
 	
-	public void addChannelGenerator(ChannelGenerator channelGenerator) {
-		channelGenerators.put(channelGenerator.getChannelName(), channelGenerator);
-		for (IdentifierTemplate id: channelGenerator.getIdentifierTemplates()) {
-			identifierTemplates.put(id.getResourceName(), id);				
+	public void addChannel(Channel channel) {
+		channels.put(channel.getChannelName(), channel);
+		for (ResourcePath id: channel.getResources()) {
+			resourcePaths.put(id.getResourceName(), id);				
 		}
 	}
 	
-	public void removeChannelGenerator(String channelName) {
-		channelGenerators.remove(channelName);
+	public void removeChannel(String channelName) {
+		channels.remove(channelName);
 	}
 	
-	public Collection<ChannelGenerator> getIOChannelGenerators() {
-		return ioChannelGenerators.values();
+	public Collection<Channel> getIOChannels() {
+		return ioChannels.values();
 	}
 	
-	public ChannelGenerator getIOChannelGenerator(String channelName) {
-		return ioChannelGenerators.get(channelName);
+	public Channel getIOChannel(String channelName) {
+		return ioChannels.get(channelName);
 	}
 	
-	public void setIOChannelGenerators(HashMap<String, ChannelGenerator> ioChannelGenerators) {
-		this.ioChannelGenerators = ioChannelGenerators;
-		for (ChannelGenerator g: ioChannelGenerators.values()) {
-			for (IdentifierTemplate id: g.getIdentifierTemplates()) {
-				identifierTemplates.put(id.getResourceName(), id);				
+	public void setIOChannels(HashMap<String, Channel> ioChannels) {
+		this.ioChannels = ioChannels;
+		for (Channel g: ioChannels.values()) {
+			for (ResourcePath id: g.getResources()) {
+				resourcePaths.put(id.getResourceName(), id);				
 			}
 		}
 	}
 	
-	public void addIOChannelGenerator(ChannelGenerator ioChannelGenerator) {
-		ioChannelGenerators.put(ioChannelGenerator.getChannelName(), ioChannelGenerator);
-		for (IdentifierTemplate id: ioChannelGenerator.getIdentifierTemplates()) {
-			identifierTemplates.put(id.getResourceName(), id);				
+	public void addIOChannel(Channel ioChannel) {
+		ioChannels.put(ioChannel.getChannelName(), ioChannel);
+		for (ResourcePath id: ioChannel.getResources()) {
+			resourcePaths.put(id.getResourceName(), id);				
 		}
 	}
 	
-	public void removeIOChannelGenerator(String ioChannelName) {
-		ioChannelGenerators.remove(ioChannelName);
+	public void removeIOChannel(String ioChannelName) {
+		ioChannels.remove(ioChannelName);
 	}
 	
 	public void addType(Type type) {
@@ -383,11 +383,11 @@ public class DataConstraintModel {
 	@Override
 	public String toString() {
 		String out = "";
-		for (ChannelGenerator channelGenerator: ioChannelGenerators.values()) {
-			out += channelGenerator.toString();
+		for (Channel channel: ioChannels.values()) {
+			out += channel.toString();
 		}
-		for (ChannelGenerator channelGenerator: channelGenerators.values()) {
-			out += channelGenerator.toString();
+		for (Channel channel: channels.values()) {
+			out += channel.toString();
 		}
 		return out;
 	}
@@ -395,8 +395,8 @@ public class DataConstraintModel {
 	public String getSourceText() {
 		String out = "";
 		String init = "";
-		for (IdentifierTemplate identifierTemplate: identifierTemplates.values()) {
-			String initializer = identifierTemplate.getInitText();
+		for (ResourcePath resource: resourcePaths.values()) {
+			String initializer = resource.getInitText();
 			if (initializer != null) {
 				init += initializer;
 			}
@@ -404,11 +404,11 @@ public class DataConstraintModel {
 		if (init.length() > 0) {
 			out += "init {\n" + init + "}\n";
 		}
-		for (ChannelGenerator channelGenerator: ioChannelGenerators.values()) {
-			out += channelGenerator.getSourceText();
+		for (Channel channel: ioChannels.values()) {
+			out += channel.getSourceText();
 		}
-		for (ChannelGenerator channelGenerator: channelGenerators.values()) {
-			out += channelGenerator.getSourceText();
+		for (Channel channel: channels.values()) {
+			out += channel.getSourceText();
 		}
 		return out;
 	}

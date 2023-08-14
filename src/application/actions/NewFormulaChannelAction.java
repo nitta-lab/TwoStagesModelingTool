@@ -19,7 +19,7 @@ import javax.swing.JTextField;
 
 import application.ApplicationWindow;
 import application.editor.Editor;
-import models.visualModel.FormulaChannelGenerator;
+import models.visualModel.FormulaChannel;
 
 public class NewFormulaChannelAction extends AbstractEditorAction implements ActionListener {
 	
@@ -47,16 +47,16 @@ public class NewFormulaChannelAction extends AbstractEditorAction implements Act
 		panel.add(symbolText);
 
 		int r = JOptionPane.showConfirmDialog(
-			null,				// �I�[�i�[�E�B���h�E
-			panel,				// ���b�Z�[�W
-			"New Formula Channel",			// �E�B���h�E�^�C�g��
-			JOptionPane.OK_CANCEL_OPTION,	// �I�v�V�����i�{�^���̎�ށj
-			JOptionPane.QUESTION_MESSAGE);	// ���b�Z�[�W�^�C�v�i�A�C�R���̎�ށj
+			null,
+			panel,
+			"New Formula Channel",
+			JOptionPane.OK_CANCEL_OPTION,
+			JOptionPane.QUESTION_MESSAGE);
 		
 		String channelName = channelText.getText();
 		String symbol = symbolText.getText();
 		if(r == JOptionPane.OK_OPTION) {
-			editor.addFormulaChannelGenerator(new FormulaChannelGenerator(channelName, editor.getModel().getSymbol(symbol)));
+			editor.addFormulaChannel(new FormulaChannel(channelName, editor.getModel().getSymbol(symbol)));
 		}
 	}
 }

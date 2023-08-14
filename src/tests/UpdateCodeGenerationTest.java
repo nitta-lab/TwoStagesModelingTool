@@ -13,8 +13,8 @@ import models.algebra.ValueUndefined;
 import models.algebra.Variable;
 import models.dataConstraintModel.*;
 import models.dataFlowModel.DataTransferModel;
-import models.dataFlowModel.DataTransferChannelGenerator;
-import models.dataFlowModel.DataTransferChannelGenerator.IResourceStateAccessor;
+import models.dataFlowModel.DataTransferChannel;
+import models.dataFlowModel.DataTransferChannel.IResourceStateAccessor;
 import models.dataFlowModel.ResolvingMultipleDefinitionIsFutureWork;
 
 public class UpdateCodeGenerationTest {
@@ -25,10 +25,10 @@ public class UpdateCodeGenerationTest {
 		Symbol sum = new Symbol("sum", 1, Symbol.Type.PREFIX, "stream().mapToInt(x->x).sum", Symbol.Type.METHOD);
 		
 		// resources
-		IdentifierTemplate payment = new IdentifierTemplate("payment", DataConstraintModel.typeInt, 0);	// an identifier template to specify the payment resource
-		IdentifierTemplate loyalty = new IdentifierTemplate("loyalty", DataConstraintModel.typeInt, 0);	// an identifier template to specify the loyalty resource
-		IdentifierTemplate history = new IdentifierTemplate("history", DataConstraintModel.typeList, 0);// an identifier template to specify the payment history resource
-		IdentifierTemplate total = new IdentifierTemplate("total", DataConstraintModel.typeInt, 0);		// an identifier template to specify the total payment resource
+		ResourcePath payment = new ResourcePath("payment", DataConstraintModel.typeInt, 0);	// a resource to specify the payment resource
+		ResourcePath loyalty = new ResourcePath("loyalty", DataConstraintModel.typeInt, 0);	// a resource to specify the loyalty resource
+		ResourcePath history = new ResourcePath("history", DataConstraintModel.typeList, 0);// a resource to specify the payment history resource
+		ResourcePath total = new ResourcePath("total", DataConstraintModel.typeInt, 0);		// a resource to specify the total payment resource
 		
 		// fields in the Java program
 		final Field fPayment = new Field("payment", DataConstraintModel.typeInt);
@@ -42,7 +42,7 @@ public class UpdateCodeGenerationTest {
 		final Parameter pTotal = new Parameter("total", DataConstraintModel.typeInt);
 		IResourceStateAccessor pushAccessor = new IResourceStateAccessor() {
 			@Override
-			public Expression getCurrentStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			public Expression getCurrentStateAccessorFor(ResourcePath target, ResourcePath from) {
 				if (target.equals(from)) {
 					if (target.equals(payment)) return fPayment;
 					if (target.equals(loyalty)) return fLoyalty;
@@ -52,7 +52,7 @@ public class UpdateCodeGenerationTest {
 				return null;
 			}
 			@Override
-			public Expression getNextStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			public Expression getNextStateAccessorFor(ResourcePath target, ResourcePath from) {
 				if (target.equals(payment)) return pPayment;
 				if (target.equals(loyalty)) return pLoyalty;
 				if (target.equals(history)) return pHistory;
@@ -68,7 +68,7 @@ public class UpdateCodeGenerationTest {
 		final Symbol totalGetter = new Symbol("getTotal", 1, Symbol.Type.METHOD);
 		IResourceStateAccessor pullAccessor = new IResourceStateAccessor() {
 			@Override
-			public Expression getCurrentStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			public Expression getCurrentStateAccessorFor(ResourcePath target, ResourcePath from) {
 				if (target.equals(from)) {
 					if (target.equals(payment)) return fPayment;
 					if (target.equals(loyalty)) return fLoyalty;
@@ -78,7 +78,7 @@ public class UpdateCodeGenerationTest {
 				return null;
 			}
 			@Override
-			public Expression getNextStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			public Expression getNextStateAccessorFor(ResourcePath target, ResourcePath from) {
 				if (target.equals(payment)) {
 					Term getter = new Term(paymentGetter);
 					getter.addChild(fPayment);
@@ -108,7 +108,7 @@ public class UpdateCodeGenerationTest {
 		// payment(p1, update1(y)) == y
 		// loyalty(l, update1(y)) == floor(y * 0.05)
 		//
-		DataTransferChannelGenerator c1 = new DataTransferChannelGenerator("c1");
+		DataTransferChannel c1 = new DataTransferChannel("c1");
 		ChannelMember c1_payment = new ChannelMember(payment);
 		ChannelMember c1_loyalty = new ChannelMember(loyalty);
 		c1.addChannelMemberAsInput(c1_payment);
@@ -175,7 +175,7 @@ public class UpdateCodeGenerationTest {
 		// payment(p1, update2(z)) == z
 		// history(h, update2(z)) == cons(z, h)
 		//
-		DataTransferChannelGenerator c2 = new DataTransferChannelGenerator("c2");
+		DataTransferChannel c2 = new DataTransferChannel("c2");
 		ChannelMember c2_payment = new ChannelMember(payment);
 		ChannelMember c2_history = new ChannelMember(history);
 		c2.addChannelMemberAsInput(c2_payment);
@@ -238,7 +238,7 @@ public class UpdateCodeGenerationTest {
 		// history(h, update3(u)) = u
 		// total(t, update3(u)) = sum(u)
 		//
-		DataTransferChannelGenerator c3 = new DataTransferChannelGenerator("c3");
+		DataTransferChannel c3 = new DataTransferChannel("c3");
 		ChannelMember c3_history = new ChannelMember(history);
 		ChannelMember c3_total = new ChannelMember(total);
 		c3.addChannelMemberAsInput(c3_history);

@@ -3,8 +3,6 @@ package models.algebra;
 import java.util.ArrayList;
 import java.util.List;
 
-import models.dataConstraintModel.IdentifierTemplate;
-
 public class Position implements Cloneable {
 	private ArrayList<Integer> orders = new ArrayList<Integer>();
 	

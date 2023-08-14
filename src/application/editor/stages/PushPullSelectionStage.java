@@ -21,7 +21,7 @@ import application.editor.Stage;
 import models.Edge;
 import models.dataFlowModel.DataFlowEdge;
 import models.dataFlowModel.DataFlowGraph;
-import models.dataFlowModel.DataTransferChannelGenerator;
+import models.dataFlowModel.DataTransferChannel;
 import models.dataFlowModel.DataTransferModel;
 import models.dataFlowModel.PushPullAttribute;
 import models.dataFlowModel.ResourceNode;
@@ -110,18 +110,18 @@ public class PushPullSelectionStage extends Stage {
 			for (Edge e : dataFlowGraph.getEdges()) {
 				if (e instanceof DataFlowEdge) {
 					DataFlowEdge dataFlow = (DataFlowEdge) e;
-					DataTransferChannelGenerator channelGen = dataFlow.getChannelGenerator();
+					DataTransferChannel channel = dataFlow.getChannel();
 					ResourceNode srcRes = (ResourceNode) dataFlow.getSource();
 					ResourceNode dstRes = (ResourceNode) dataFlow.getDestination();
 					for (Object edge: graph.getChildEdges(layer)) {
 						mxCell edgeCell = (mxCell) edge;
 						if (edgeCell.getValue() instanceof SrcDstAttribute) {
 							SrcDstAttribute edgeAttr = (SrcDstAttribute) edgeCell.getValue();
-							if (edgeAttr.getSrouce() == srcRes.getIdentifierTemplate() && edgeAttr.getDestination() == channelGen) {
+							if (edgeAttr.getSrouce() == srcRes.getResource() && edgeAttr.getDestination() == channel) {
 								// input edge
 								edgeCell.setValue(new InEdgeAttribute((PushPullAttribute) dataFlow.getAttribute(), srcRes));
 								break;
-							} else if (edgeAttr.getSrouce() == channelGen && edgeAttr.getDestination() == dstRes.getIdentifierTemplate()) {
+							} else if (edgeAttr.getSrouce() == channel && edgeAttr.getDestination() == dstRes.getResource()) {
 								// output edge
 								edgeCell.setValue(new OutEdgeAttribute(edgeAttr, dstRes));
 								break;								

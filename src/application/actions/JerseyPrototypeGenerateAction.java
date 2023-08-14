@@ -17,7 +17,7 @@ import generators.DataTransferMethodAnalyzer;
 import generators.JerseyCodeGenerator;
 import generators.JerseyMethodBodyGenerator;
 import models.algebra.Type;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.ResourcePath;
 import models.dataFlowModel.DataTransferModel;
 import models.dataFlowModel.ModelExtension;
 import models.dataFlowModel.DataFlowGraph;
@@ -50,7 +50,7 @@ public class JerseyPrototypeGenerateAction extends AbstractEditorAction {
 			if (fileName == null) fileName = "Main";
 			String mainTypeName = fileName.split("\\.")[0];
 			boolean exist = false;
-			for (IdentifierTemplate id: model.getIdentifierTemplates()) {
+			for (ResourcePath id: model.getResourcePaths()) {
 				String resourceName = id.getResourceName().substring(0, 1).toUpperCase() + id.getResourceName().substring(1);
 				if (mainTypeName.equals(resourceName)) {
 					exist = true;

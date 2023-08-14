@@ -21,13 +21,13 @@ import models.algebra.Type;
 import models.algebra.UnificationFailed;
 import models.algebra.ValueUndefined;
 import models.algebra.Variable;
-import models.dataConstraintModel.ChannelGenerator;
+import models.dataConstraintModel.Channel;
 import models.dataConstraintModel.ChannelMember;
 import models.dataConstraintModel.DataConstraintModel;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.ResourcePath;
 import models.dataFlowModel.DataTransferModel;
-import models.dataFlowModel.DataTransferChannelGenerator;
-import models.dataFlowModel.DataTransferChannelGenerator.IResourceStateAccessor;
+import models.dataFlowModel.DataTransferChannel;
+import models.dataFlowModel.DataTransferChannel.IResourceStateAccessor;
 import models.dataFlowModel.PushPullAttribute;
 import models.dataFlowModel.PushPullValue;
 import models.dataFlowModel.ResolvingMultipleDefinitionIsFutureWork;
@@ -48,24 +48,24 @@ public class JavaMethodBodyGenerator {
 		
 		// Generate the body of each update or getter method.
 		try {
-			Map<MethodDeclaration, Set<IdentifierTemplate>> referredResources = new HashMap<>(); 
+			Map<MethodDeclaration, Set<ResourcePath>> referredResources = new HashMap<>(); 
 			for (Edge e: graph.getEdges()) {
 				DataFlowEdge d = (DataFlowEdge) e;
 				PushPullAttribute pushPull = (PushPullAttribute) d.getAttribute();
 				ResourceNode src = (ResourceNode) d.getSource();
 				ResourceNode dst = (ResourceNode) d.getDestination();
-				String srcResourceName = src.getIdentifierTemplate().getResourceName();
-				String dstResourceName = dst.getIdentifierTemplate().getResourceName();
+				String srcResourceName = src.getResource().getResourceName();
+				String dstResourceName = dst.getResource().getResourceName();
 				TypeDeclaration srcType = typeMap.get(srcResourceName);
 				TypeDeclaration dstType = typeMap.get(dstResourceName);
-				for (ChannelMember out: d.getChannelGenerator().getOutputChannelMembers()) {
-					if (out.getIdentifierTemplate() == dst.getIdentifierTemplate()) {
+				for (ChannelMember out: d.getChannel().getOutputChannelMembers()) {
+					if (out.getResource() == dst.getResource()) {
 						if (pushPull.getOptions().get(0) == PushPullValue.PUSH && srcType != null) {
 							// for push data transfer
 							MethodDeclaration update = getUpdateMethod(dstType, srcType);
 							if (((StoreAttribute) dst.getAttribute()).isStored()) {
 								// update stored state of dst side resource (when every incoming edge is in push style)
-								Expression updateExp = d.getChannelGenerator().deriveUpdateExpressionOf(out, JavaCodeGenerator.pushAccessor);									
+								Expression updateExp = d.getChannel().deriveUpdateExpressionOf(out, JavaCodeGenerator.pushAccessor);									
 								String[] sideEffects = new String[] {""};
 								String curState = updateExp.toImplementation(sideEffects);
 								String updateStatement;
@@ -89,7 +89,7 @@ public class JavaMethodBodyGenerator {
 							if (((StoreAttribute) dst.getAttribute()).isStored()) {
 								// returns the current state stored in a field.
 								if (getter.getBody() == null || getter.getBody().getStatements().size() == 0) {
-									Type resourceType = dst.getIdentifierTemplate().getResourceStateType();
+									Type resourceType = dst.getResource().getResourceStateType();
 									if (model.isPrimitiveType(resourceType)) {
 										getter.addStatement("return value;");
 									} else {
@@ -111,19 +111,19 @@ public class JavaMethodBodyGenerator {
 							// src side (for a chain of update method invocations)
 							for (MethodDeclaration srcUpdate: getUpdateMethods(srcType)) {
 								String refParams = "";
-								Set<IdentifierTemplate> referredSet = referredResources.get(srcUpdate);
-								for (ChannelMember rc: d.getChannelGenerator().getReferenceChannelMembers()) {
+								Set<ResourcePath> referredSet = referredResources.get(srcUpdate);
+								for (ChannelMember rc: d.getChannel().getReferenceChannelMembers()) {
 									// to get the value of reference member.
-									IdentifierTemplate ref = rc.getIdentifierTemplate();
+									ResourcePath ref = rc.getResource();
 									if (referredSet == null) {
 										referredSet = new HashSet<>();
 										referredResources.put(srcUpdate, referredSet);
 									}
-									if (ref != dst.getIdentifierTemplate()) {
+									if (ref != dst.getResource()) {
 										String refVarName = ref.getResourceName();
 										if (!referredSet.contains(ref)) {
 											referredSet.add(ref);
-											Expression refGetter = JavaCodeGenerator.pullAccessor.getCurrentStateAccessorFor(ref, src.getIdentifierTemplate());
+											Expression refGetter = JavaCodeGenerator.pullAccessor.getCurrentStateAccessorFor(ref, src.getResource());
 											String[] sideEffects = new String[] {""};
 											String refExp = refGetter.toImplementation(sideEffects);
 											String refTypeName = ref.getResourceStateType().getInterfaceTypeName();
@@ -136,19 +136,19 @@ public class JavaMethodBodyGenerator {
 							}
 							for (MethodDeclaration srcInput: getInputMethods(srcType, src, model)) {
 								String refParams = "";
-								Set<IdentifierTemplate> referredSet = referredResources.get(srcInput);
-								for (ChannelMember rc: d.getChannelGenerator().getReferenceChannelMembers()) {
+								Set<ResourcePath> referredSet = referredResources.get(srcInput);
+								for (ChannelMember rc: d.getChannel().getReferenceChannelMembers()) {
 									// to get the value of reference member.
-									IdentifierTemplate ref = rc.getIdentifierTemplate();
+									ResourcePath ref = rc.getResource();
 									if (referredSet == null) {
 										referredSet = new HashSet<>();
 										referredResources.put(srcInput, referredSet);
 									}
-									if (ref != dst.getIdentifierTemplate()) {
+									if (ref != dst.getResource()) {
 										String refVarName = ref.getResourceName();
 										if (!referredSet.contains(ref)) {
 											referredSet.add(ref);
-											Expression refGetter = JavaCodeGenerator.pullAccessor.getCurrentStateAccessorFor(ref, src.getIdentifierTemplate());
+											Expression refGetter = JavaCodeGenerator.pullAccessor.getCurrentStateAccessorFor(ref, src.getResource());
 											String[] sideEffects = new String[] {""};
 											String refExp = refGetter.toImplementation(sideEffects);
 											String refTypeName = ref.getResourceStateType().getInterfaceTypeName();
@@ -164,29 +164,29 @@ public class JavaMethodBodyGenerator {
 							MethodDeclaration getter = getGetterMethod(dstType);
 							if (getter.getBody() == null || getter.getBody().getStatements().size() == 0) {
 								boolean isContainedPush = false;
-								HashMap<IdentifierTemplate, IResourceStateAccessor> inputIdentifierToStateAccessor = new HashMap<>();
+								HashMap<ResourcePath, IResourceStateAccessor> inputResourceToStateAccessor = new HashMap<>();
 								for (Edge eIn: dst.getInEdges()) {
 									DataFlowEdge dIn = (DataFlowEdge) eIn;
 									if (((PushPullAttribute) dIn.getAttribute()).getOptions().get(0) == PushPullValue.PUSH) {
 										isContainedPush = true;
-										inputIdentifierToStateAccessor.put(((ResourceNode) dIn.getSource()).getIdentifierTemplate(), JavaCodeGenerator.pushAccessor);
+										inputResourceToStateAccessor.put(((ResourceNode) dIn.getSource()).getResource(), JavaCodeGenerator.pushAccessor);
 									} else {
-										inputIdentifierToStateAccessor.put(((ResourceNode) dIn.getSource()).getIdentifierTemplate(), JavaCodeGenerator.pullAccessor);
+										inputResourceToStateAccessor.put(((ResourceNode) dIn.getSource()).getResource(), JavaCodeGenerator.pullAccessor);
 									}
 								}
 								// for reference channel members
-								for (ChannelMember c: d.getChannelGenerator().getReferenceChannelMembers()) {
-									inputIdentifierToStateAccessor.put(c.getIdentifierTemplate(), JavaCodeGenerator.pullAccessor);			// by pull data transfer
+								for (ChannelMember c: d.getChannel().getReferenceChannelMembers()) {
+									inputResourceToStateAccessor.put(c.getResource(), JavaCodeGenerator.pullAccessor);			// by pull data transfer
 								}
 								String[] sideEffects = new String[] {""};
 								// generate a return statement.
 								if (!isContainedPush) {
 									// All incoming edges are in PULL style.
-									String curState = d.getChannelGenerator().deriveUpdateExpressionOf(out, JavaCodeGenerator.pullAccessor).toImplementation(sideEffects);
+									String curState = d.getChannel().deriveUpdateExpressionOf(out, JavaCodeGenerator.pullAccessor).toImplementation(sideEffects);
 									getter.addStatement(sideEffects[0] + "return " + curState + ";");
 								} else {
 									// At least one incoming edge is in PUSH style.
-									String curState = d.getChannelGenerator().deriveUpdateExpressionOf(out, JavaCodeGenerator.pullAccessor, inputIdentifierToStateAccessor).toImplementation(sideEffects);
+									String curState = d.getChannel().deriveUpdateExpressionOf(out, JavaCodeGenerator.pullAccessor, inputResourceToStateAccessor).toImplementation(sideEffects);
 									getter.addStatement(sideEffects[0] + "return " + curState + ";");
 								}
 							}
@@ -199,13 +199,13 @@ public class JavaMethodBodyGenerator {
 			TypeDeclaration mainType = typeMap.get(mainTypeName);
 			for (Node n: graph.getNodes()) {
 				ResourceNode resource = (ResourceNode) n;
-				String resourceName = resource.getIdentifierTemplate().getResourceName();
+				String resourceName = resource.getResource().getResourceName();
 				TypeDeclaration type = typeMap.get(resourceName);
 				if (type != null) {
 					// getter method
 					MethodDeclaration getter = getGetterMethod(type);
 					if (getter.getBody() == null || getter.getBody().getStatements().size() == 0) {
-						Type resourceType = resource.getIdentifierTemplate().getResourceStateType();
+						Type resourceType = resource.getResource().getResourceStateType();
 						if (model.isPrimitiveType(resourceType)) {
 							getter.addStatement("return value;");							
 						} else {
@@ -224,8 +224,8 @@ public class JavaMethodBodyGenerator {
 						}
 					}
 					// methods for input events
-					Map<DataTransferChannelGenerator, Set<ChannelMember>> ioChannelsAndMembers = getIOChannelsAndMembers(resource, model);
-					for (Map.Entry<DataTransferChannelGenerator, Set<ChannelMember>> entry: ioChannelsAndMembers.entrySet()) {
+					Map<DataTransferChannel, Set<ChannelMember>> ioChannelsAndMembers = getIOChannelsAndMembers(resource, model);
+					for (Map.Entry<DataTransferChannel, Set<ChannelMember>> entry: ioChannelsAndMembers.entrySet()) {
 						Set<ChannelMember> outs = entry.getValue();
 						for (ChannelMember out: outs) {
 							MethodDeclaration input = getInputMethod(type, out);
@@ -293,13 +293,13 @@ public class JavaMethodBodyGenerator {
 		return null;
 	}
 	
-	private static Map<DataTransferChannelGenerator, Set<ChannelMember>> getIOChannelsAndMembers(ResourceNode resource, DataTransferModel model) {
-		Map<DataTransferChannelGenerator, Set<ChannelMember>> ioChannelsAndMembers = new HashMap<>();
-		for (ChannelGenerator c: model.getIOChannelGenerators()) {
-			DataTransferChannelGenerator ch = (DataTransferChannelGenerator) c;
+	private static Map<DataTransferChannel, Set<ChannelMember>> getIOChannelsAndMembers(ResourceNode resource, DataTransferModel model) {
+		Map<DataTransferChannel, Set<ChannelMember>> ioChannelsAndMembers = new HashMap<>();
+		for (Channel c: model.getIOChannels()) {
+			DataTransferChannel ch = (DataTransferChannel) c;
 			// I/O channel
 			for (ChannelMember out: ch.getOutputChannelMembers()) {
-				if (out.getIdentifierTemplate().equals(resource.getIdentifierTemplate())) {
+				if (out.getResource().equals(resource.getResource())) {
 					if (out.getStateTransition().getMessageExpression() instanceof Term || out.getStateTransition().getMessageExpression() instanceof Variable) {
 						Set<ChannelMember> channelMembers = ioChannelsAndMembers.get(ch);
 						if (channelMembers == null) {
@@ -316,11 +316,11 @@ public class JavaMethodBodyGenerator {
 
 	private static List<MethodDeclaration> getInputMethods(TypeDeclaration type, ResourceNode resource, DataTransferModel model) {
 		List<MethodDeclaration> inputs = new ArrayList<>();
-		for (ChannelGenerator c: model.getIOChannelGenerators()) {
-			DataTransferChannelGenerator channel = (DataTransferChannelGenerator) c;
+		for (Channel c: model.getIOChannels()) {
+			DataTransferChannel channel = (DataTransferChannel) c;
 			// I/O channel
 			for (ChannelMember out: channel.getOutputChannelMembers()) {
-				if (out.getIdentifierTemplate().equals(resource.getIdentifierTemplate())) {
+				if (out.getResource().equals(resource.getResource())) {
 					MethodDeclaration input = getInputMethod(type, out);
 					inputs.add(input);
 				}

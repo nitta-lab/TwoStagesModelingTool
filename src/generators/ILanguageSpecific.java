@@ -10,7 +10,7 @@ import code.ast.TypeDeclaration;
 import code.ast.VariableDeclaration;
 import models.algebra.Expression;
 import models.algebra.Type;
-import models.dataFlowModel.DataTransferChannelGenerator.IResourceStateAccessor;
+import models.dataFlowModel.DataTransferChannel.IResourceStateAccessor;
 
 public interface ILanguageSpecific {
 	CompilationUnit newCompilationUnit(TypeDeclaration component);

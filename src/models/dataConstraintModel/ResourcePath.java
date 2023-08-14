@@ -4,19 +4,19 @@ import models.algebra.Expression;
 import models.algebra.Term;
 import models.algebra.Type;
 
-public class IdentifierTemplate {
+public class ResourcePath {
 	private String resourceName = null;
 	private Type resourceStateType = null;
 	private int numParameters = 0;
 	private Expression initialValue = null;
 	protected String initText = null;
 	
-	public IdentifierTemplate(String resourceName, int numParameters) {
+	public ResourcePath(String resourceName, int numParameters) {
 		this.resourceName = resourceName;
-		this.numParameters =numParameters;
+		this.numParameters = numParameters;
 	}
 
-	public IdentifierTemplate(String resourceName, Type resourceStateType, int numParameters) {
+	public ResourcePath(String resourceName, Type resourceStateType, int numParameters) {
 		this.resourceName = resourceName;
 		this.resourceStateType = resourceStateType;
 		this.numParameters = numParameters;
@@ -60,8 +60,8 @@ public class IdentifierTemplate {
 	}
 
 	public boolean equals(Object another) {
-		if (!(another instanceof IdentifierTemplate)) return false;
-		return resourceName.equals(((IdentifierTemplate) another).resourceName);
+		if (!(another instanceof ResourcePath)) return false;
+		return resourceName.equals(((ResourcePath) another).resourceName);
 	}
 	
 	public int hashCode() {

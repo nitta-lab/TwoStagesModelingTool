@@ -24,12 +24,12 @@ import models.algebra.Type;
 import models.algebra.UnificationFailed;
 import models.algebra.ValueUndefined;
 import models.algebra.Variable;
-import models.dataConstraintModel.ChannelGenerator;
+import models.dataConstraintModel.Channel;
 import models.dataConstraintModel.ChannelMember;
 import models.dataConstraintModel.DataConstraintModel;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.ResourcePath;
 import models.dataFlowModel.DataTransferModel;
-import models.dataFlowModel.DataTransferChannelGenerator;
+import models.dataFlowModel.DataTransferChannel;
 import models.dataFlowModel.PushPullAttribute;
 import models.dataFlowModel.PushPullValue;
 import models.dataFlowModel.ResolvingMultipleDefinitionIsFutureWork;
@@ -37,7 +37,7 @@ import models.dataFlowModel.DataFlowEdge;
 import models.dataFlowModel.DataFlowGraph;
 import models.dataFlowModel.ResourceNode;
 import models.dataFlowModel.StoreAttribute;
-import models.dataFlowModel.DataTransferChannelGenerator.IResourceStateAccessor;
+import models.dataFlowModel.DataTransferChannel.IResourceStateAccessor;
 
 public class JerseyMethodBodyGenerator {
 	private static String baseURL = "http://localhost:8080";
@@ -54,37 +54,37 @@ public class JerseyMethodBodyGenerator {
 		// Generate the body of each update or getter method.
 		try {
 			Set<MethodDeclaration> chainedCalls = new HashSet<>();
-			Map<MethodDeclaration, Set<IdentifierTemplate>> referredResources = new HashMap<>(); 
+			Map<MethodDeclaration, Set<ResourcePath>> referredResources = new HashMap<>(); 
 			for (Edge e: graph.getEdges()) {
 				DataFlowEdge d = (DataFlowEdge) e;
 				PushPullAttribute pushPull = (PushPullAttribute) d.getAttribute();
 				ResourceNode src = (ResourceNode) d.getSource();
 				ResourceNode dst = (ResourceNode) d.getDestination();
-				String srcResourceName = src.getIdentifierTemplate().getResourceName();
-				String dstResourceName = dst.getIdentifierTemplate().getResourceName();
+				String srcResourceName = src.getResource().getResourceName();
+				String dstResourceName = dst.getResource().getResourceName();
 				TypeDeclaration srcType = typeMap.get(srcResourceName);
 				TypeDeclaration dstType = typeMap.get(dstResourceName);
-				for (ChannelMember out: d.getChannelGenerator().getOutputChannelMembers()) {
-					if (out.getIdentifierTemplate() == dst.getIdentifierTemplate()) {
+				for (ChannelMember out: d.getChannel().getOutputChannelMembers()) {
+					if (out.getResource() == dst.getResource()) {
 						if (pushPull.getOptions().get(0) == PushPullValue.PUSH && srcType != null) {
 							// for push data transfer
 							MethodDeclaration update = getUpdateMethod(dstType, srcType);
 							if (((StoreAttribute) dst.getAttribute()).isStored()) {
 								// update stored state of dst side resource (when every incoming edge is in push style)
 								Expression updateExp = null;
-								if (d.getChannelGenerator().getReferenceChannelMembers().size() == 0) {
-									updateExp = d.getChannelGenerator().deriveUpdateExpressionOf(out, JerseyCodeGenerator.pushAccessor);
+								if (d.getChannel().getReferenceChannelMembers().size() == 0) {
+									updateExp = d.getChannel().deriveUpdateExpressionOf(out, JerseyCodeGenerator.pushAccessor);
 								} else {
 									// if there exists one or more reference channel member.
-									HashMap<IdentifierTemplate, IResourceStateAccessor> inputIdentifierToStateAccessor = new HashMap<>();
+									HashMap<ResourcePath, IResourceStateAccessor> inputResourceToStateAccessor = new HashMap<>();
 									for (Edge eIn: dst.getInEdges()) {
 										DataFlowEdge dIn = (DataFlowEdge) eIn;
-										inputIdentifierToStateAccessor.put(((ResourceNode) dIn.getSource()).getIdentifierTemplate(), JerseyCodeGenerator.pushAccessor);
+										inputResourceToStateAccessor.put(((ResourceNode) dIn.getSource()).getResource(), JerseyCodeGenerator.pushAccessor);
 									}
-									for (ChannelMember c: d.getChannelGenerator().getReferenceChannelMembers()) {
-										inputIdentifierToStateAccessor.put(c.getIdentifierTemplate(), JerseyCodeGenerator.pullAccessor);
+									for (ChannelMember c: d.getChannel().getReferenceChannelMembers()) {
+										inputResourceToStateAccessor.put(c.getResource(), JerseyCodeGenerator.pullAccessor);
 									}
-									updateExp = d.getChannelGenerator().deriveUpdateExpressionOf(out, JerseyCodeGenerator.pushAccessor, inputIdentifierToStateAccessor);
+									updateExp = d.getChannel().deriveUpdateExpressionOf(out, JerseyCodeGenerator.pushAccessor, inputResourceToStateAccessor);
 								}
 								String[] sideEffects = new String[] {""};
 								String curState = updateExp.toImplementation(sideEffects);
@@ -187,16 +187,16 @@ public class JerseyMethodBodyGenerator {
 							for (MethodDeclaration srcUpdate: getUpdateMethods(srcType)) {
 								if (srcUpdate != null) {
 									List<Map.Entry<Type, Map.Entry<String, String>>> params = new ArrayList<>();
-									Set<IdentifierTemplate> referredSet = referredResources.get(srcUpdate);
-									if (d.getChannelGenerator().getReferenceChannelMembers().size() > 0) {
-										for (ChannelMember rc: d.getChannelGenerator().getReferenceChannelMembers()) {
+									Set<ResourcePath> referredSet = referredResources.get(srcUpdate);
+									if (d.getChannel().getReferenceChannelMembers().size() > 0) {
+										for (ChannelMember rc: d.getChannel().getReferenceChannelMembers()) {
 											// For each reference channel member, get the current state of the reference side resource by pull data transfer.
-											IdentifierTemplate ref = rc.getIdentifierTemplate();
+											ResourcePath ref = rc.getResource();
 											if (referredSet == null) {
 												referredSet = new HashSet<>();
 												referredResources.put(srcUpdate, referredSet);
 											}
-											if (ref != dst.getIdentifierTemplate()) {
+											if (ref != dst.getResource()) {
 												String refResourceName = ref.getResourceName();
 												Type refResourceType = ref.getResourceStateType();
 												if (!referredSet.contains(ref)) {
@@ -215,14 +215,14 @@ public class JerseyMethodBodyGenerator {
 									if (!chainedCalls.contains(srcUpdate)) {
 										// The first call to an update method in this method
 										// Value of the source side (input side) resource.
-										params.add(0, new AbstractMap.SimpleEntry<>(src.getIdentifierTemplate().getResourceStateType(), new AbstractMap.SimpleEntry<>(srcResourceName, "this.value")));
+										params.add(0, new AbstractMap.SimpleEntry<>(src.getResource().getResourceStateType(), new AbstractMap.SimpleEntry<>(srcResourceName, "this.value")));
 										srcUpdate.addStatement(getHttpMethodParamsStatement(srcType.getTypeName(), params, true));
 										srcUpdate.addStatement("String result = " + getHttpMethodCallStatement(baseURL, dstResourceName, srcResName, httpMethod));
 										chainedCalls.add(srcUpdate);
 									} else {
 										// After the second time of call to update methods in this method
 										// Value of the source side (input side) resource.
-										params.add(0, new AbstractMap.SimpleEntry<>(src.getIdentifierTemplate().getResourceStateType(), new AbstractMap.SimpleEntry<>(srcResourceName, "this.value")));
+										params.add(0, new AbstractMap.SimpleEntry<>(src.getResource().getResourceStateType(), new AbstractMap.SimpleEntry<>(srcResourceName, "this.value")));
 										srcUpdate.addStatement(getHttpMethodParamsStatement(srcType.getTypeName(), params, false));
 										srcUpdate.addStatement("result = " + getHttpMethodCallStatement(baseURL, dstResourceName, srcResName, httpMethod));
 									}
@@ -231,15 +231,15 @@ public class JerseyMethodBodyGenerator {
 							}
 							for (MethodDeclaration srcInput: getInputMethods(srcType, src, model)) {
 								List<Map.Entry<Type, Map.Entry<String, String>>> params = new ArrayList<>();
-								Set<IdentifierTemplate> referredSet = referredResources.get(srcInput);
-								for (ChannelMember rc: d.getChannelGenerator().getReferenceChannelMembers()) {
+								Set<ResourcePath> referredSet = referredResources.get(srcInput);
+								for (ChannelMember rc: d.getChannel().getReferenceChannelMembers()) {
 									// For each reference channel member, get the current state of the reference side resource by pull data transfer.
-									IdentifierTemplate ref = rc.getIdentifierTemplate();
+									ResourcePath ref = rc.getResource();
 									if (referredSet == null) {
 										referredSet = new HashSet<>();
 										referredResources.put(srcInput, referredSet);
 									}
-									if (ref != dst.getIdentifierTemplate()) {
+									if (ref != dst.getResource()) {
 										String refResourceName = ref.getResourceName();
 										Type refResourceType = ref.getResourceStateType();
 										if (!referredSet.contains(ref)) {
@@ -257,14 +257,14 @@ public class JerseyMethodBodyGenerator {
 								if (!chainedCalls.contains(srcInput)) {
 									// First call to an update method in this method
 									// Value of the source side (input side) resource.
-									params.add(0, new AbstractMap.SimpleEntry<>(src.getIdentifierTemplate().getResourceStateType(), new AbstractMap.SimpleEntry<>(srcResourceName, "this.value")));
+									params.add(0, new AbstractMap.SimpleEntry<>(src.getResource().getResourceStateType(), new AbstractMap.SimpleEntry<>(srcResourceName, "this.value")));
 									srcInput.addStatement(getHttpMethodParamsStatement(srcType.getTypeName(), params, true));
 									srcInput.addStatement("String result = " + getHttpMethodCallStatement(baseURL, dstResourceName, srcResName, httpMethod));
 									chainedCalls.add(srcInput);
 								} else {
 									// After the second time of call to update methods in this method
 									// Value of the source side (input side) resource.
-									params.add(0, new AbstractMap.SimpleEntry<>(src.getIdentifierTemplate().getResourceStateType(), new AbstractMap.SimpleEntry<>(srcResourceName, "this.value")));
+									params.add(0, new AbstractMap.SimpleEntry<>(src.getResource().getResourceStateType(), new AbstractMap.SimpleEntry<>(srcResourceName, "this.value")));
 									srcInput.addStatement(getHttpMethodParamsStatement(srcType.getTypeName(), params, false));
 									srcInput.addStatement("result = " + getHttpMethodCallStatement(baseURL, dstResourceName, srcResName, httpMethod));
 								}
@@ -276,17 +276,17 @@ public class JerseyMethodBodyGenerator {
 							if (getter.getBody() == null || getter.getBody().getStatements().size() == 0) {
 								// generate a return statement.
 								String[] sideEffects = new String[] {""};
-								String curState = d.getChannelGenerator().deriveUpdateExpressionOf(out, JerseyCodeGenerator.pullAccessor).toImplementation(sideEffects);		// no pull data transfer is included.
+								String curState = d.getChannel().deriveUpdateExpressionOf(out, JerseyCodeGenerator.pullAccessor).toImplementation(sideEffects);		// no pull data transfer is included.
 								getter.addStatement(sideEffects[0] + "return " + curState + ";");
 								// For each reference channel member, get the current state of the reference side resource by pull data transfer.
-								for (ChannelMember c: d.getChannelGenerator().getReferenceChannelMembers()) {
-									String refResourceName = c.getIdentifierTemplate().getResourceName();
-									Type refResourceType = c.getIdentifierTemplate().getResourceStateType();
+								for (ChannelMember c: d.getChannel().getReferenceChannelMembers()) {
+									String refResourceName = c.getResource().getResourceName();
+									Type refResourceType = c.getResource().getResourceStateType();
 									generatePullDataTransfer(getter, refResourceName, refResourceType);
 								}
 							}
 							// get src side resource state by pull data transfer.
-							Type srcResourceType = src.getIdentifierTemplate().getResourceStateType();
+							Type srcResourceType = src.getResource().getResourceStateType();
 							generatePullDataTransfer(getter, srcResourceName, srcResourceType);
 						} 
 					}
@@ -295,7 +295,7 @@ public class JerseyMethodBodyGenerator {
 			// for source nodes
 			for (Node n: graph.getNodes()) {
 				ResourceNode resource = (ResourceNode) n;
-				String resourceName = resource.getIdentifierTemplate().getResourceName();
+				String resourceName = resource.getResource().getResourceName();
 				TypeDeclaration type = typeMap.get(resourceName);
 				if (type != null) {
 					// getter method
@@ -304,8 +304,8 @@ public class JerseyMethodBodyGenerator {
 						getter.addStatement("return value;");
 					}
 					// methods for input events
-					Map<DataTransferChannelGenerator, Set<ChannelMember>> ioChannelsAndMembers = getIOChannelsAndMembers(resource, model);
-					for (Map.Entry<DataTransferChannelGenerator, Set<ChannelMember>> entry: ioChannelsAndMembers.entrySet()) {
+					Map<DataTransferChannel, Set<ChannelMember>> ioChannelsAndMembers = getIOChannelsAndMembers(resource, model);
+					for (Map.Entry<DataTransferChannel, Set<ChannelMember>> entry: ioChannelsAndMembers.entrySet()) {
 						Set<ChannelMember> outs = entry.getValue();
 						for (ChannelMember out: outs) {
 							MethodDeclaration input = getInputMethod(type, out);
@@ -540,13 +540,13 @@ public class JerseyMethodBodyGenerator {
 		return null;
 	}
 	
-	private static Map<DataTransferChannelGenerator, Set<ChannelMember>> getIOChannelsAndMembers(ResourceNode resource, DataTransferModel model) {
-		Map<DataTransferChannelGenerator, Set<ChannelMember>> ioChannelsAndMembers = new HashMap<>();
-		for (ChannelGenerator c: model.getIOChannelGenerators()) {
-			DataTransferChannelGenerator ch = (DataTransferChannelGenerator) c;
+	private static Map<DataTransferChannel, Set<ChannelMember>> getIOChannelsAndMembers(ResourceNode resource, DataTransferModel model) {
+		Map<DataTransferChannel, Set<ChannelMember>> ioChannelsAndMembers = new HashMap<>();
+		for (Channel c: model.getIOChannels()) {
+			DataTransferChannel ch = (DataTransferChannel) c;
 			// I/O channel
 			for (ChannelMember out: ch.getOutputChannelMembers()) {
-				if (out.getIdentifierTemplate().equals(resource.getIdentifierTemplate())) {
+				if (out.getResource().equals(resource.getResource())) {
 					if (out.getStateTransition().getMessageExpression() instanceof Term || out.getStateTransition().getMessageExpression() instanceof Variable) {
 						Set<ChannelMember> channelMembers = ioChannelsAndMembers.get(ch);
 						if (channelMembers == null) {
@@ -563,11 +563,11 @@ public class JerseyMethodBodyGenerator {
 
 	private static List<MethodDeclaration> getInputMethods(TypeDeclaration type, ResourceNode resource, DataTransferModel model) {
 		List<MethodDeclaration> inputs = new ArrayList<>();
-		for (ChannelGenerator c: model.getIOChannelGenerators()) {
-			DataTransferChannelGenerator channel = (DataTransferChannelGenerator) c;
+		for (Channel c: model.getIOChannels()) {
+			DataTransferChannel channel = (DataTransferChannel) c;
 			// I/O channel
 			for (ChannelMember out: channel.getOutputChannelMembers()) {
-				if (out.getIdentifierTemplate().equals(resource.getIdentifierTemplate())) {
+				if (out.getResource().equals(resource.getResource())) {
 					MethodDeclaration input = getInputMethod(type, out);
 					inputs.add(input);
 				}

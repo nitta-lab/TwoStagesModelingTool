@@ -19,10 +19,10 @@ import models.algebra.Symbol;
 import models.algebra.Term;
 import models.algebra.Type;
 import models.algebra.Variable;
-import models.dataConstraintModel.ChannelGenerator;
+import models.dataConstraintModel.Channel;
 import models.dataConstraintModel.ChannelMember;
 import models.dataConstraintModel.DataConstraintModel;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.ResourcePath;
 import models.dataConstraintModel.StateTransition;
 import models.dataFlowModel.DataTransferModel;
 import models.dataFlowModel.ResourceNode;
@@ -84,9 +84,9 @@ public class TypeInference {
 	}
 
 	static public void infer(DataTransferModel model) {
-		Map<IdentifierTemplate, List<Expression>> resources = new HashMap<>();
+		Map<ResourcePath, List<Expression>> resources = new HashMap<>();
 		Map<Integer, Type> variables = new HashMap<>();
-		Map<ChannelGenerator, Map<Integer, Map.Entry<List<Expression>, Type>>> messages = new HashMap<>();
+		Map<Channel, Map<Integer, Map.Entry<List<Expression>, Type>>> messages = new HashMap<>();
 		Map<Integer, Type> consOrSet = new HashMap<>();
 		Map<Integer, Type> tuple = new HashMap<>();
 		Map<Integer, Type> pair = new HashMap<>();
@@ -123,12 +123,12 @@ public class TypeInference {
 		mapComponentTypes.put(DataConstraintModel.typeMap, Arrays.asList(new Type[] { null, null }));
 
 		// 1. Collect type information from the architecture model.
-		Collection<ChannelGenerator> channels = new HashSet<>(model.getIOChannelGenerators());
-		channels.addAll(model.getChannelGenerators());
-		for (ChannelGenerator c : channels) {
+		Collection<Channel> channels = new HashSet<>(model.getIOChannels());
+		channels.addAll(model.getChannels());
+		for (Channel c : channels) {
 			for (ChannelMember cm : c.getChannelMembers()) {
 				StateTransition st = cm.getStateTransition();
-				IdentifierTemplate id = cm.getIdentifierTemplate();
+				ResourcePath id = cm.getResource();
 				
 				// 1.1 Group expressions by resources.
 				List<Expression> sameResource = resources.get(id);
@@ -1056,11 +1056,11 @@ public class TypeInference {
 		}
 	}
 
-	private static void updateResourceTypes(Expression exp, Map<IdentifierTemplate, List<Expression>> resources,
+	private static void updateResourceTypes(Expression exp, Map<ResourcePath, List<Expression>> resources,
 			Map<Integer, List<Expression>> expToResource, Map<Integer, Map<Integer, Expression>> updateFromResource) {
 		List<Expression> sameResource = expToResource.get(System.identityHashCode(exp));
 		if (sameResource == null) return;
-		for (IdentifierTemplate id : resources.keySet()) {
+		for (ResourcePath id : resources.keySet()) {
 			if (resources.get(id) == sameResource) {
 				Type resType = id.getResourceStateType();
 				Type newResType = getExpTypeIfUpdatable(resType, exp);
@@ -1124,13 +1124,13 @@ public class TypeInference {
 	}
 
 	private static void updateMessageTypes(Expression exp,
-			Map<ChannelGenerator, Map<Integer, Map.Entry<List<Expression>, Type>>> messages,
+			Map<Channel, Map<Integer, Map.Entry<List<Expression>, Type>>> messages,
 			Map<Integer, List<Expression>> expToMessage, Map<Integer, Map<Integer, Expression>> updateFromMessage) {
 		List<Expression> messageExps = expToMessage.get(System.identityHashCode(exp));
 		if (messageExps == null) return;
 		Type msgType = null;
 		Map.Entry<List<Expression>, Type> expsAndType = null;
-		for (ChannelGenerator c : messages.keySet()) {
+		for (Channel c : messages.keySet()) {
 			for (int i : messages.get(c).keySet()) {
 				expsAndType = messages.get(c).get(i);
 				if (expsAndType.getKey() == messageExps) {

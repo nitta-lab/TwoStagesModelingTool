@@ -5,7 +5,7 @@ import java.awt.event.ActionEvent;
 import javax.swing.JOptionPane;
 
 import application.editor.Editor;
-import models.dataFlowModel.DataTransferChannelGenerator;
+import models.dataFlowModel.DataTransferChannel;
 
 public class NewChannelAction extends AbstractEditorAction {
 
@@ -22,7 +22,7 @@ public class NewChannelAction extends AbstractEditorAction {
 	public void actionPerformed(ActionEvent e) {
 		String channelName = JOptionPane.showInputDialog("Channel Name:");
 		if (channelName == null) return;
-		editor.addChannelGenerator(new DataTransferChannelGenerator(channelName));
+		editor.addChannel(new DataTransferChannel(channelName));
 	}
 
 }

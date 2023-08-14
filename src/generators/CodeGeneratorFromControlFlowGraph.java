@@ -33,9 +33,9 @@ import models.controlFlowModel.ObjectNode;
 import models.controlFlowModel.StatefulObjectNode;
 import models.dataConstraintModel.ChannelMember;
 import models.dataConstraintModel.DataConstraintModel;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.ResourcePath;
 import models.dataFlowModel.DataFlowEdge;
-import models.dataFlowModel.DataTransferChannelGenerator;
+import models.dataFlowModel.DataTransferChannel;
 import models.dataFlowModel.DataTransferModel;
 import models.dataFlowModel.IFlowGraph;
 import models.dataFlowModel.PushPullAttribute;
@@ -43,7 +43,7 @@ import models.dataFlowModel.PushPullValue;
 import models.dataFlowModel.ResolvingMultipleDefinitionIsFutureWork;
 import models.dataFlowModel.ResourceNode;
 import models.dataFlowModel.StoreAttribute;
-import models.dataFlowModel.DataTransferChannelGenerator.IResourceStateAccessor;
+import models.dataFlowModel.DataTransferChannel.IResourceStateAccessor;
 
 public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 
@@ -73,13 +73,13 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 			componentMap.put(componentNode, component);
 			
 			// Declare the constructor and the fields to refer to the callee components.
-			List<IdentifierTemplate> depends = new ArrayList<>();
+			List<ResourcePath> depends = new ArrayList<>();
 			MethodDeclaration constructor = declareConstructorAndFieldsToCalleeComponents((ObjectNode) componentNode, component, depends, langSpec);
 			
 			if (componentNode instanceof StatefulObjectNode) {
 				// For this resource.
 				ResourceNode resourceNode = ((StatefulObjectNode) componentNode).getResource();
-				IdentifierTemplate resId = resourceNode.getIdentifierTemplate();
+				ResourcePath resId = resourceNode.getResource();
 				Type resStateType = resId.getResourceStateType();
 				
 				// Declare the field in this resource to store the state.
@@ -111,12 +111,12 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 			TypeDeclaration component = componentMap.get(node);
 			if (node instanceof StatefulObjectNode) {
 				ResourceNode resourceNode = ((StatefulObjectNode) node).getResource();
-				Type resStateType = resourceNode.getIdentifierTemplate().getResourceStateType();				
+				Type resStateType = resourceNode.getResource().getResourceStateType();				
 				if (((StoreAttribute) resourceNode.getAttribute()).isStored()) {
 					// Declare the getter method in this resource to obtain the state.
 					MethodDeclaration getter = langSpec.newMethodDeclaration(getterOfResourceState, resStateType);
 					component.addMethod(getter);
-					fillGetterMethodToReturnStateField(getter, resourceNode.getIdentifierTemplate().getResourceStateType(), langSpec);		// return this.value;
+					fillGetterMethodToReturnStateField(getter, resourceNode.getResource().getResourceStateType(), langSpec);		// return this.value;
 				}
 			}
 		}
@@ -243,7 +243,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 	}
 	
 	private MethodDeclaration declareConstructorAndFieldsToCalleeComponents(ObjectNode componentNode, TypeDeclaration component, 
-			List<IdentifierTemplate> depends, ILanguageSpecific langSpec) {
+			List<ResourcePath> depends, ILanguageSpecific langSpec) {
 		// Declare a constructor in each component.
 		MethodDeclaration constructor = component.createConstructor();
 		Block block = new Block();
@@ -254,7 +254,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 			ObjectNode dstNode = (ObjectNode) e.getDestination();
 			addReference(component, constructor, dstNode, langSpec);
 			if (dstNode instanceof StatefulObjectNode) {
-				IdentifierTemplate dstId = ((StatefulObjectNode) dstNode).getResource().getIdentifierTemplate();
+				ResourcePath dstId = ((StatefulObjectNode) dstNode).getResource().getResource();
 				if (!depends.contains(dstId)) depends.add(dstId);
 			}
 		}
@@ -272,7 +272,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 		}
 		if (node instanceof StatefulObjectNode) {
 			ResourceNode resourceNode = ((StatefulObjectNode) node).getResource();
-			Type resStateType = resourceNode.getIdentifierTemplate().getResourceStateType();				
+			Type resStateType = resourceNode.getResource().getResourceStateType();				
 			MethodDeclaration getter = langSpec.newMethodDeclaration(getterOfResourceState, resStateType);
 			MethodDeclaration getter2 = getMethod(component, getter.getName());
 			if (getter2 == null) {
@@ -283,19 +283,19 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 			if (((StoreAttribute) resourceNode.getAttribute()).isStored()) {
 				if (getter2 == null) {
 					// Declare the getter method in this resource to obtain the state.
-					fillGetterMethodToReturnStateField(getter, resourceNode.getIdentifierTemplate().getResourceStateType(), langSpec);		// return this.value;
+					fillGetterMethodToReturnStateField(getter, resourceNode.getResource().getResourceStateType(), langSpec);		// return this.value;
 				}
 			} else {
 				// Invocations to other getter methods when at least one incoming data-flow edges is PULL-style.
 				boolean isContainedPush = false;
-				DataTransferChannelGenerator ch = null;
-				HashMap<IdentifierTemplate, IResourceStateAccessor> inputIdentifierToStateAccessor = new HashMap<>();
+				DataTransferChannel ch = null;
+				HashMap<ResourcePath, IResourceStateAccessor> inputResourceToStateAccessor = new HashMap<>();
 				for (Edge eIn: resourceNode.getInEdges()) {
 					DataFlowEdge dIn = (DataFlowEdge) eIn;
 					if (((PushPullAttribute) dIn.getAttribute()).getOptions().get(0) == PushPullValue.PUSH) {
 						// PUSH data transfer
 						isContainedPush = true;
-						inputIdentifierToStateAccessor.put(((ResourceNode) dIn.getSource()).getIdentifierTemplate(), getPushAccessor());
+						inputResourceToStateAccessor.put(((ResourceNode) dIn.getSource()).getResource(), getPushAccessor());
 					} else {
 						// PULL data transfer
 						for (Edge outEdge: node.getOutEdges()) {
@@ -305,35 +305,35 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 							if (returnedResources.contains((ResourceNode) dIn.getSource())) {
 								if (returnedResources.size() == 1) {
 									MethodDeclaration nextGetter = declareAndFillGetterMethods(dstNode, outEdge, dataFlowInform, componentMap, langSpec);
-									inputIdentifierToStateAccessor.put(((ResourceNode) dIn.getSource()).getIdentifierTemplate(), getPullAccessor(dstNode.getName(), nextGetter.getName()));
+									inputResourceToStateAccessor.put(((ResourceNode) dIn.getSource()).getResource(), getPullAccessor(dstNode.getName(), nextGetter.getName()));
 									break;
 								} else {
 									MethodDeclaration nextGetter = declareAndFillGetterMethods(dstNode, outEdge, dataFlowInform, componentMap, langSpec);
 									int idx = returnedResources.indexOf((ResourceNode) dIn.getSource());
 									int len = returnedResources.size();
-									inputIdentifierToStateAccessor.put(((ResourceNode) dIn.getSource()).getIdentifierTemplate(), 
+									inputResourceToStateAccessor.put(((ResourceNode) dIn.getSource()).getResource(), 
 											getPullAccessor(langSpec.getTupleGet(langSpec.getMethodInvocation(langSpec.getFieldAccessor(dstNode.getName()), nextGetter.getName()), idx, len)));
 									break;
 								}
 							}
 						}
-						ch = dIn.getChannelGenerator();		// Always unique.
+						ch = dIn.getChannel();		// Always unique.
 					}
 				}
 				// For reference channel members.
 				for (ChannelMember c: ch.getReferenceChannelMembers()) {
-					inputIdentifierToStateAccessor.put(c.getIdentifierTemplate(), getPullAccessor());			// by pull data transfer
+					inputResourceToStateAccessor.put(c.getResource(), getPullAccessor());			// by pull data transfer
 				}
 				
 				// Add a return statement.
 				try {
 					for (ChannelMember out: ch.getOutputChannelMembers()) {
-						if (out.getIdentifierTemplate() == resourceNode.getIdentifierTemplate()) {
+						if (out.getResource() == resourceNode.getResource()) {
 							String[] sideEffects = new String[] {""};
 							// The following process is common to the cases of 1) and 2).
 							// 1) All incoming edges are in PULL-style.
 							// 2) At least one incoming edge is in PUSH-style.
-							String curState = ch.deriveUpdateExpressionOf(out, getPullAccessor(), inputIdentifierToStateAccessor).toImplementation(sideEffects);
+							String curState = ch.deriveUpdateExpressionOf(out, getPullAccessor(), inputResourceToStateAccessor).toImplementation(sideEffects);
 							getter.addStatement(sideEffects[0] + langSpec.getReturnStatement(curState) + langSpec.getStatementDelimiter());
 							break;
 						}
@@ -353,8 +353,8 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 			} else {
 				// Unexpected.
 			}
-			getterMethodName += langSpec.toComponentName(returnedRes.getIdentifierTemplate().getResourceName()) + "Value";
-			MethodDeclaration mediateGetter = langSpec.newMethodDeclaration(getterMethodName, returnedRes.getIdentifierTemplate().getResourceStateType());
+			getterMethodName += langSpec.toComponentName(returnedRes.getResource().getResourceName()) + "Value";
+			MethodDeclaration mediateGetter = langSpec.newMethodDeclaration(getterMethodName, returnedRes.getResource().getResourceStateType());
 			component.addMethod(mediateGetter);
 			
 			// Add a return statement.
@@ -373,7 +373,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 		// Declare a mediate getter method to return multiple values.
 		String getterMethodName = "get";
 		for (ResourceNode rn: resourcesToReturn) {
-			getterMethodName += langSpec.toComponentName(rn.getIdentifierTemplate().getResourceName());
+			getterMethodName += langSpec.toComponentName(rn.getResource().getResourceName());
 		}
 		getterMethodName += "Values";
 		Type returnType = createReturnType(resourcesToReturn, langSpec);
@@ -392,7 +392,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 		} else {
 			List<String> params = new ArrayList<>();
 			for (ResourceNode rn: resourcesToReturn) {
-				IdentifierTemplate rId = rn.getIdentifierTemplate();
+				ResourcePath rId = rn.getResource();
 				if (rId.getResourceName().equals(((ObjectNode) node).getName())) {
 					params.add(langSpec.getMethodInvocation(getterOfResourceState));
 				} else {
@@ -441,7 +441,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 				// Declare an update method.
 				updateOrInput = declareUpdateMethod(node, inEdge, component, dataFlowInform, langSpec);
 			} else {
-				DataTransferChannelGenerator ch = ((EntryPointObjectNode) prevResNode).getIoChannelGenerator();
+				DataTransferChannel ch = ((EntryPointObjectNode) prevResNode).getIOChannel();
 				updateOrInput = getInputMethod(resourceNode, ch, component);
 				if (updateOrInput != null) return updateOrInput;
 				// Declare an input method.
@@ -459,7 +459,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 				String varName = addInvocationInResourceUpdate(node, updateOrInput, calleeMethod, ((ObjectNode) dstNode).getName(), returnedResources, langSpec);
 				if (varName != null && returnedResources != null) {
 					for (ResourceNode rn: returnedResources) {
-						String resName = rn.getIdentifierTemplate().getResourceName();
+						String resName = rn.getResource().getResourceName();
 						resToVar.put(rn, resName);
 						varToRes.put(resName, Arrays.asList(new ResourceNode[] {rn}));
 					}
@@ -548,7 +548,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 					String varName = addInvocationInMediatorUpdate(updateOrInput, calleeMethod, ((ObjectNode) dstNode).getName(), returnedResources, langSpec);
 					if (varName != null && returnedResources != null) {
 						for (ResourceNode rn: returnedResources) {
-							String resName = rn.getIdentifierTemplate().getResourceName();
+							String resName = rn.getResource().getResourceName();
 							resToVar.put(rn, resName);
 							varToRes.put(resName, Arrays.asList(new ResourceNode[] {rn}));
 						}
@@ -576,10 +576,10 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 		// Declare an update method in the component.
 		ArrayList<VariableDeclaration> vars = new ArrayList<>();
 		List<ResourceNode> passedResoueces = dataFlowInform.get(inEdge).get(PushPullValue.PUSH);
-		Set<IdentifierTemplate> passedIds = new HashSet<>();
+		Set<ResourcePath> passedIds = new HashSet<>();
 		String methodName = updateMethodName;
 		for (ResourceNode rn: passedResoueces) {
-			IdentifierTemplate rId = rn.getIdentifierTemplate();
+			ResourcePath rId = rn.getResource();
 			passedIds.add(rId);
 			methodName += langSpec.toComponentName(rId.getResourceName());
 			vars.add(langSpec.newVariableDeclaration(rId.getResourceStateType(), rId.getResourceName()));				
@@ -593,11 +593,11 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 				try {
 					for (Edge e: resourceNode.getInEdges()) {
 						DataFlowEdge re = (DataFlowEdge) e;
-						for (ChannelMember in: re.getChannelGenerator().getInputChannelMembers()) {
-							if (passedIds.contains(in.getIdentifierTemplate())) {
-								for (ChannelMember out: re.getChannelGenerator().getOutputChannelMembers()) {
-									if (out.getIdentifierTemplate() == resourceNode.getIdentifierTemplate()) {
-										Expression updateExp = re.getChannelGenerator().deriveUpdateExpressionOf(out, getPushAccessor());
+						for (ChannelMember in: re.getChannel().getInputChannelMembers()) {
+							if (passedIds.contains(in.getResource())) {
+								for (ChannelMember out: re.getChannel().getOutputChannelMembers()) {
+									if (out.getResource() == resourceNode.getResource()) {
+										Expression updateExp = re.getChannel().deriveUpdateExpressionOf(out, getPushAccessor());
 										String[] sideEffects = new String[] {""};
 										String curState = updateExp.toImplementation(sideEffects);
 										String updateStatement;
@@ -622,7 +622,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 			// Declare the field to cache the state of the source resource in the type of the destination resource.
 			if (node.getIndegree() > 1) {
 				// If incoming edges are multiple
-				for (IdentifierTemplate srcRes: passedIds) {
+				for (ResourcePath srcRes: passedIds) {
 					String srcResName = srcRes.getResourceName();
 					if (langSpec.declareField()) {
 						// Declare the cache field. 
@@ -642,10 +642,10 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 		return update;
 	}
 
-	private MethodDeclaration declareInputMethod(ResourceNode resourceNode, DataTransferChannelGenerator ch, ILanguageSpecific langSpec) {
+	private MethodDeclaration declareInputMethod(ResourceNode resourceNode, DataTransferChannel ch, ILanguageSpecific langSpec) {
 		MethodDeclaration input = null;
 		for (ChannelMember out : ch.getOutputChannelMembers()) {
-			if (out.getIdentifierTemplate().equals(resourceNode.getIdentifierTemplate())) {
+			if (out.getResource().equals(resourceNode.getResource())) {
 				Expression message = out.getStateTransition().getMessageExpression();
 				if (message instanceof Term) {
 					// Declare an input method in this component.
@@ -687,7 +687,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 	private String createReturnValue(List<ResourceNode> resourcesToReturn, Node node, Type returnType, Map<ResourceNode, String> resToVar, Map<String, List<ResourceNode>> varToRes, ILanguageSpecific langSpec) {
 		List<String> params = new ArrayList<>();
 		for (ResourceNode rn: resourcesToReturn) {
-			IdentifierTemplate rId = rn.getIdentifierTemplate();
+			ResourcePath rId = rn.getResource();
 			if (rId.getResourceName().equals(((ObjectNode) node).getName())) {
 				params.add(langSpec.getFieldAccessor(fieldOfResourceState));
 			} else {
@@ -708,11 +708,11 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 
 	private Type createReturnType(List<ResourceNode> resourcesToReturn, ILanguageSpecific langSpec) {
 		if (resourcesToReturn.size() == 1) {
-			return resourcesToReturn.iterator().next().getIdentifierTemplate().getResourceStateType();
+			return resourcesToReturn.iterator().next().getResource().getResourceStateType();
 		}
 		List<Type> compTypes = new ArrayList<>();
 		for (ResourceNode rn: resourcesToReturn) {
-			IdentifierTemplate rId = rn.getIdentifierTemplate();
+			ResourcePath rId = rn.getResource();
 			compTypes.add(rId.getResourceStateType());
 		}
 		Type returnType = langSpec.newTupleType(compTypes);
@@ -759,7 +759,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 			String targetVarName = null;
 			if (returnResources.size() == 1) {
 				ResourceNode targetNode = returnResources.get(0);
-				targetVarName = targetNode.getIdentifierTemplate().getResourceName();
+				targetVarName = targetNode.getResource().getResourceName();
 				resourceUpdateMethod.addStatement(
 						langSpec.getVariableDeclaration(calleeMethod.getReturnType().getInterfaceTypeName(), targetVarName) 
 						+ langSpec.getAssignment() 
@@ -771,7 +771,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 				VariableDeclaration targetVar = langSpec.newVariableDeclaration(calleeMethod.getReturnType(), targetVarName);
 				List<VariableDeclaration> vars = new ArrayList<>();
 				for (ResourceNode rn: returnResources) {
-					IdentifierTemplate rId = rn.getIdentifierTemplate();
+					ResourcePath rId = rn.getResource();
 					vars.add(langSpec.newVariableDeclaration(rId.getResourceStateType(), rId.getResourceName()));
 				}
 				resourceUpdateMethod.addStatement(
@@ -800,7 +800,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 			String targetVarName = null;
 			if (returnResources.size() == 1) {
 				ResourceNode targetNode = returnResources.get(0);
-				targetVarName = targetNode.getIdentifierTemplate().getResourceName();
+				targetVarName = targetNode.getResource().getResourceName();
 				resourceUpdateMethod.addStatement(
 						langSpec.getVariableDeclaration(calleeMethod.getReturnType().getInterfaceTypeName(), targetVarName) 
 						+ langSpec.getAssignment() 
@@ -812,7 +812,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 				VariableDeclaration targetVar = langSpec.newVariableDeclaration(calleeMethod.getReturnType(), targetVarName);
 				List<VariableDeclaration> vars = new ArrayList<>();
 				for (ResourceNode rn: returnResources) {
-					IdentifierTemplate rId = rn.getIdentifierTemplate();
+					ResourcePath rId = rn.getResource();
 					vars.add(langSpec.newVariableDeclaration(rId.getResourceStateType(), rId.getResourceName()));
 				}
 				resourceUpdateMethod.addStatement(
@@ -829,9 +829,9 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 		String varName = null;
 		for (ResourceNode rn: resources) {
 			if (varName == null) {
-				varName = rn.getIdentifierTemplate().getResourceName();
+				varName = rn.getResource().getResourceName();
 			} else {
-				varName += langSpec.toComponentName(rn.getIdentifierTemplate().getResourceName());
+				varName += langSpec.toComponentName(rn.getResource().getResourceName());
 			}
 		}
 		return varName;
@@ -850,7 +850,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 	protected IResourceStateAccessor getPullAccessor(final String receiverName, final String getterOfResourceState) {
 		return new IResourceStateAccessor() {
 			@Override
-			public Expression getCurrentStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			public Expression getCurrentStateAccessorFor(ResourcePath target, ResourcePath from) {
 				if (target.equals(from)) {
 					return new Field(fieldOfResourceState,
 							target.getResourceStateType() != null ? target.getResourceStateType()
@@ -863,7 +863,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 			}
 
 			@Override
-			public Expression getNextStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			public Expression getNextStateAccessorFor(ResourcePath target, ResourcePath from) {
 				Term getter = new Term(new Symbol(getterOfResourceState, 1, Symbol.Type.METHOD));
 				getter.addChild(new Field(receiverName, target.getResourceStateType()));
 				return getter;
@@ -874,7 +874,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 	protected IResourceStateAccessor getPullAccessor(final String resourceAccessor) {
 		return new IResourceStateAccessor() {
 			@Override
-			public Expression getCurrentStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			public Expression getCurrentStateAccessorFor(ResourcePath target, ResourcePath from) {
 				if (target.equals(from)) {
 					return new Field(fieldOfResourceState,
 							target.getResourceStateType() != null ? target.getResourceStateType()
@@ -887,7 +887,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 			}
 
 			@Override
-			public Expression getNextStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			public Expression getNextStateAccessorFor(ResourcePath target, ResourcePath from) {
 				return new Constant(resourceAccessor);
 			}
 		};

@@ -10,7 +10,7 @@ import models.algebra.InvalidMessage;
 import models.algebra.ParameterizedIdentifierIsFutureWork;
 import models.algebra.UnificationFailed;
 import models.algebra.ValueUndefined;
-import models.dataConstraintModel.ChannelGenerator;
+import models.dataConstraintModel.Channel;
 import models.dataConstraintModel.ChannelMember;
 import models.dataFlowModel.*;
 import parser.Parser;
@@ -37,10 +37,10 @@ public class ParseTest {
 				model = parser.doParse();
 				System.out.println(model);
 
-				for (ChannelGenerator c: model.getChannelGenerators()) {
-					for (ChannelMember out: ((DataTransferChannelGenerator) c).getOutputChannelMembers()) {
+				for (Channel c: model.getChannels()) {
+					for (ChannelMember out: ((DataTransferChannel) c).getOutputChannelMembers()) {
 						String[] sideEffects = new String[] {""};
-						System.out.println("next" + out.getIdentifierTemplate().getResourceName() + " = " + ((DataTransferChannelGenerator) c).deriveUpdateExpressionOf(out).toImplementation(sideEffects));
+						System.out.println("next" + out.getResource().getResourceName() + " = " + ((DataTransferChannel) c).deriveUpdateExpressionOf(out).toImplementation(sideEffects));
 					}
 				}
 

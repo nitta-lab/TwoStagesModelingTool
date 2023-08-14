@@ -106,7 +106,7 @@ public class ObjectNodeAttribute extends NodeAttribute {
 	@Override
 	public String toString() {
 		return objectNode instanceof StatefulObjectNode
-					? ((StatefulObjectNode) objectNode).getResource().getIdentifierTemplate().getResourceName()
+					? ((StatefulObjectNode) objectNode).getResource().getResource().getResourceName()
 					:  objectNode.getName();
 	}
 }

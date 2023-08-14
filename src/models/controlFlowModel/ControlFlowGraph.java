@@ -8,11 +8,11 @@ import models.Node;
 import models.algebra.Expression;
 import models.algebra.Term;
 import models.algebra.Variable;
-import models.dataConstraintModel.ChannelGenerator;
+import models.dataConstraintModel.Channel;
 import models.dataConstraintModel.ChannelMember;
 import models.dataFlowModel.DataFlowEdge;
 import models.dataFlowModel.DataFlowGraph;
-import models.dataFlowModel.DataTransferChannelGenerator;
+import models.dataFlowModel.DataTransferChannel;
 import models.dataFlowModel.DataTransferModel;
 import models.dataFlowModel.IFlowGraph;
 import models.dataFlowModel.PushPullAttribute;
@@ -40,8 +40,8 @@ public class ControlFlowGraph implements IFlowGraph {
 				pullCallGraph.addEdge(dstNode, srcNode, PushPullValue.PULL);
 			}
 		}
-		for (ChannelGenerator ch: model.getIOChannelGenerators()) {
-			DataTransferChannelGenerator cio = (DataTransferChannelGenerator) ch;
+		for (Channel ch: model.getIOChannels()) {
+			DataTransferChannel cio = (DataTransferChannel) ch;
 			EntryPointObjectNode srcNode = new EntryPointObjectNode(cio);
 			for (ChannelMember cm: cio.getChannelMembers()) {
 				if (srcNode.getName() == null) {
@@ -52,7 +52,7 @@ public class ControlFlowGraph implements IFlowGraph {
 						srcNode.setName(((Variable) exp).getName());
 					}
 				}
-				ResourceNode dstResNode = dataFlowGraph.getResouceNode(cm.getIdentifierTemplate());
+				ResourceNode dstResNode = dataFlowGraph.getResouceNode(cm.getResource());
 				StatefulObjectNode dstNode = pushCallGraph.getStatefulObjectNode(dstResNode);
 				if (dstNode == null) {
 					pushCallGraph.addNode(dstResNode);

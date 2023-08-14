@@ -35,7 +35,7 @@ public class DataStorageDecisionTest {
 				DataTransferModelAnalyzer.annotateWithSelectableDataTransferAttiribute(graph);
 				DataTransferMethodAnalyzer.decideToStoreResourceStates(graph);
 				for(Node n:graph.getNodes()) {
-					System.out.println(((ResourceNode) n).getIdentifierTemplate().getResourceName() + ":" + ((StoreAttribute) ((ResourceNode) n).getAttribute()).isStored());
+					System.out.println(((ResourceNode) n).getResource().getResourceName() + ":" + ((StoreAttribute) ((ResourceNode) n).getAttribute()).isStored());
 				}
 			} catch (ExpectedChannel | ExpectedChannelName | ExpectedLeftCurlyBracket | ExpectedInOrOutOrRefKeyword
 					| ExpectedStateTransition | ExpectedEquals | ExpectedRHSExpression | WrongLHSExpression

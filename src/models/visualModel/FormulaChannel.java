@@ -11,16 +11,16 @@ import models.algebra.Term;
 import models.algebra.Variable;
 import models.dataConstraintModel.ChannelMember;
 import models.dataConstraintModel.DataConstraintModel;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.ResourcePath;
 import models.dataConstraintModel.StateTransition;
-import models.dataFlowModel.DataTransferChannelGenerator;
+import models.dataFlowModel.DataTransferChannel;
 
-public class FormulaChannelGenerator extends DataTransferChannelGenerator {
+public class FormulaChannel extends DataTransferChannel {
 	private Symbol defaultOperator = null;
 	private String formula = null;
 	private Expression formulaRhs = null;
 
-	public FormulaChannelGenerator(String channelName, Symbol defaultOperator) {
+	public FormulaChannel(String channelName, Symbol defaultOperator) {
 		super(channelName);
 		this.defaultOperator = defaultOperator;
 	}
@@ -32,24 +32,24 @@ public class FormulaChannelGenerator extends DataTransferChannelGenerator {
 //		channelMember.setStateTransition(st);
 		super.addChannelMemberAsInput(channelMember);
 		if (formula != null && getInputChannelMembers().size() > 1) {
-			formula += " " + defaultOperator + " " + channelMember.getIdentifierTemplate().getResourceName();
+			formula += " " + defaultOperator + " " + channelMember.getResource().getResourceName();
 			if (formulaRhs != null) {
 				if (formulaRhs instanceof Variable) {
 					Term newTerm = new Term(defaultOperator);
 					newTerm.addChild(formulaRhs);
-					newTerm.addChild(new Variable(channelMember.getIdentifierTemplate().getResourceName()), true);
+					newTerm.addChild(new Variable(channelMember.getResource().getResourceName()), true);
 					formulaRhs = newTerm;
 				} else if (formulaRhs instanceof Term) {
 					Term newTerm = new Term(defaultOperator);
 					newTerm.addChild(formulaRhs);
-					newTerm.addChild(new Variable(channelMember.getIdentifierTemplate().getResourceName()));
+					newTerm.addChild(new Variable(channelMember.getResource().getResourceName()));
 					formulaRhs = newTerm;						
 				}
 			}
 		} else {
 			if (formula == null) formula = "";
-			formula += channelMember.getIdentifierTemplate().getResourceName();
-			formulaRhs = new Variable(channelMember.getIdentifierTemplate().getResourceName());
+			formula += channelMember.getResource().getResourceName();
+			formulaRhs = new Variable(channelMember.getResource().getResourceName());
 		}
 		if (formulaRhs != null) {
 			setFormulaTerm(formulaRhs);
@@ -64,7 +64,7 @@ public class FormulaChannelGenerator extends DataTransferChannelGenerator {
 		if (getOutputChannelMembers().size() == 1) {
 			if (formula == null) formula = "";
 			if (!formula.contains("==")) {
-				formula = channelMember.getIdentifierTemplate().getResourceName() + " == " + formula;
+				formula = channelMember.getResource().getResourceName() + " == " + formula;
 			}
 		}
 		if (formulaRhs != null) {
@@ -91,11 +91,11 @@ public class FormulaChannelGenerator extends DataTransferChannelGenerator {
 		} else {
 			return;
 		}
-		Map<IdentifierTemplate, Variable> curStates = new HashMap<>();
-		Map<IdentifierTemplate, Variable> nextStates = new HashMap<>();
+		Map<ResourcePath, Variable> curStates = new HashMap<>();
+		Map<ResourcePath, Variable> nextStates = new HashMap<>();
 		Map<Variable, Variable> resToNextVar = new HashMap<>();
 		for (ChannelMember cm: this.getInputChannelMembers()) {
-			IdentifierTemplate id = cm.getIdentifierTemplate();
+			ResourcePath id = cm.getResource();
 			String resName = id.getResourceName();
 			Variable curVar = new Variable(resName + "1");
 			Variable nextVar = new Variable(resName + "2");
@@ -111,7 +111,7 @@ public class FormulaChannelGenerator extends DataTransferChannelGenerator {
 		Symbol update = new Symbol("update");
 		update.setArity(resToNextVar.keySet().size());
 		for (ChannelMember cm: getInputChannelMembers()) {
-			IdentifierTemplate id = cm.getIdentifierTemplate();
+			ResourcePath id = cm.getResource();
 			StateTransition st = new StateTransition();
 			st.setCurStateExpression(curStates.get(id));
 			st.setNextStateExpression(nextStates.get(id));
@@ -132,7 +132,7 @@ public class FormulaChannelGenerator extends DataTransferChannelGenerator {
 			}
 		}
 		for (ChannelMember cm: getOutputChannelMembers()) {
-			IdentifierTemplate id = cm.getIdentifierTemplate();
+			ResourcePath id = cm.getResource();
 			StateTransition st = new StateTransition();
 			String resName = id.getResourceName();
 			Variable curVar = new Variable(resName + "1");

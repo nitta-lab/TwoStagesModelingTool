@@ -5,7 +5,7 @@ import java.awt.event.ActionEvent;
 import javax.swing.JOptionPane;
 
 import application.editor.Editor;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.ResourcePath;
 
 public class NewResourceAction extends AbstractEditorAction {
 
@@ -22,7 +22,7 @@ public class NewResourceAction extends AbstractEditorAction {
 	public void actionPerformed(ActionEvent e) {
 		String resName = JOptionPane.showInputDialog("Resourece Name:");
 		if (resName == null) return;
-		editor.addIdentifierTemplate(new IdentifierTemplate(resName, 0));
+		editor.addResourcePath(new ResourcePath(resName, 0));
 	}
 
 }

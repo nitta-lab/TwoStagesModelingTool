@@ -524,7 +524,7 @@ public class ControlFlowDelegationStage extends Stage {
 				for(int i = 0; i < dataFlowLayerCell.getChildCount(); i++) {
 					mxCell channelCell =(mxCell)dataFlowLayerCell.getChildAt(i);
 
-					String entryPointObjNodeName = entryPointObjNode.getIoChannelGenerator().getChannelName();
+					String entryPointObjNodeName = entryPointObjNode.getIOChannel().getChannelName();
 					String channelCellName = "";
 					if(channelCell.getValue() instanceof String) channelCellName = (String) channelCell.getValue();
 					else continue;

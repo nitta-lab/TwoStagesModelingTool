@@ -14,10 +14,10 @@ import models.algebra.Term;
 import models.algebra.Type;
 import models.algebra.Variable;
 import models.dataConstraintModel.ChannelMember;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.ResourcePath;
 import models.dataConstraintModel.StateTransition;
 import models.dataFlowModel.DataTransferModel;
-import models.dataFlowModel.DataTransferChannelGenerator;
+import models.dataFlowModel.DataTransferChannel;
 import parser.exceptions.ExpectedAssignment;
 import parser.exceptions.ExpectedChannel;
 import parser.exceptions.ExpectedChannelName;
@@ -86,18 +86,18 @@ public class Parser {
 	public DataTransferModel parseDataFlowModel() 
 			throws ExpectedRightBracket, ExpectedChannel, ExpectedChannelName, ExpectedLeftCurlyBracket, ExpectedInOrOutOrRefKeyword, ExpectedStateTransition, ExpectedEquals, ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, ExpectedAssignment {
 		DataTransferModel model = new DataTransferModel();
-		DataTransferChannelGenerator channel;
+		DataTransferChannel channel;
 		while ((channel = parseChannel(model)) != null) {
 			if (channel.getInputChannelMembers().size() == 0) {
-				model.addIOChannelGenerator(channel);
+				model.addIOChannel(channel);
 			} else {
-				model.addChannelGenerator(channel);
+				model.addChannel(channel);
 			}
 		}
 		return model;
 	}
 
-	public DataTransferChannelGenerator parseChannel(DataTransferModel model) 
+	public DataTransferChannel parseChannel(DataTransferModel model) 
 			throws 
 			ExpectedLeftCurlyBracket, ExpectedRightBracket, ExpectedAssignment,
 			ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, 
@@ -119,7 +119,7 @@ public class Parser {
 		if (channelName.equals(LEFT_CURLY_BRACKET)) throw new ExpectedChannelName(stream.getLine());
 
 		int fromLine = stream.getLine();
-		DataTransferChannelGenerator channel = new DataTransferChannelGenerator(channelName);
+		DataTransferChannel channel = new DataTransferChannel(channelName);
 		String leftBracket = stream.next();
 		if (!leftBracket.equals(LEFT_CURLY_BRACKET)) throw new ExpectedLeftCurlyBracket(stream.getLine());
 
@@ -159,10 +159,10 @@ public class Parser {
 		String resourceName = null;		
 		while (stream.hasNext() && !(resourceName = stream.next()).equals(RIGHT_CURLY_BRACKET)) {
 			int fromLine = stream.getLine();
-			IdentifierTemplate identifier = model.getIdentifierTemplate(resourceName);
-			if (identifier == null) {
-				identifier = new IdentifierTemplate(resourceName, 0);
-				model.addIdentifierTemplate(identifier);
+			ResourcePath resource = model.getResourcePath(resourceName);
+			if (resource == null) {
+				resource = new ResourcePath(resourceName, 0);
+				model.addResourcePath(resource);
 			}
 
 			if (!stream.hasNext()) throw new ExpectedAssignment(stream.getLine());
@@ -178,8 +178,8 @@ public class Parser {
 			rightTerm = parseTerm(stream, model);		
 			if (rightTerm == null) throw new WrongRHSExpression(stream.getLine());
 
-			identifier.setInitialValue(rightTerm);
-			identifier.setInitText(stream.getSourceText(fromLine, toLine));
+			resource.setInitialValue(rightTerm);
+			resource.setInitText(stream.getSourceText(fromLine, toLine));
 		}
 	}
 
@@ -204,22 +204,22 @@ public class Parser {
 		}
 
 		String resourceName = ((Term) leftTerm).getSymbol().getName();
-		IdentifierTemplate identifier = model.getIdentifierTemplate(resourceName);
-		if (identifier == null) {
-			identifier = new IdentifierTemplate(resourceName, 0);
-			model.addIdentifierTemplate(identifier);
+		ResourcePath resource = model.getResourcePath(resourceName);
+		if (resource == null) {
+			resource = new ResourcePath(resourceName, 0);
+			model.addResourcePath(resource);
 		}
-		ChannelMember channelMember = new ChannelMember(identifier);
+		ChannelMember channelMember = new ChannelMember(resource);
 		StateTransition stateTransition = new StateTransition();
 		stateTransition.setCurStateExpression(((Term) leftTerm).getChild(0));
 		stateTransition.setMessageExpression(((Term) leftTerm).getChild(1));
 		if (!inOrOutOrRef.equals(REF)) stateTransition.setNextStateExpression(rightTerm);
 		channelMember.setStateTransition(stateTransition);
 		// for type definition
-		if (identifier.getResourceStateType() == null && ((Term) leftTerm).getChild(0) instanceof Variable) {
+		if (resource.getResourceStateType() == null && ((Term) leftTerm).getChild(0) instanceof Variable) {
 			Variable stateVar = (Variable) ((Term) leftTerm).getChild(0);
 			if (stateVar.getType() != null) {
-				identifier.setResourceStateType(stateVar.getType());
+				resource.setResourceStateType(stateVar.getType());
 			}
 		}
 		if (((Term) leftTerm).getChild(1) instanceof Term) {

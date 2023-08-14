@@ -7,17 +7,17 @@ import java.util.Set;
 
 import models.DirectedGraph;
 import models.Node;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.ResourcePath;
 
 public class DataFlowGraph extends DirectedGraph implements IFlowGraph {
-	protected Map<IdentifierTemplate, ResourceNode> nodeMap = null;
+	protected Map<ResourcePath, ResourceNode> nodeMap = null;
 	
 	public DataFlowGraph() {
 		super();
 		nodeMap = new HashMap<>();
 	}
 	
-	public void addNode(IdentifierTemplate id) {
+	public void addNode(ResourcePath id) {
 		if (nodeMap.get(id) == null) {
 			ResourceNode node = new ResourceNode(id);
 			addNode(node);
@@ -25,7 +25,7 @@ public class DataFlowGraph extends DirectedGraph implements IFlowGraph {
 		}
 	}
 
-	public void addEdge(IdentifierTemplate in, IdentifierTemplate out, DataTransferChannelGenerator dfChannelGen) {
+	public void addEdge(ResourcePath in, ResourcePath out, DataTransferChannel dfChannel) {
 		ResourceNode srcNode = nodeMap.get(in);
 		if (srcNode == null) {
 			srcNode = new ResourceNode(in);
@@ -38,16 +38,16 @@ public class DataFlowGraph extends DirectedGraph implements IFlowGraph {
 			addNode(dstNode);
 			nodeMap.put(out, dstNode);
 		}
-		addEdge(new DataFlowEdge(srcNode, dstNode, dfChannelGen));
+		addEdge(new DataFlowEdge(srcNode, dstNode, dfChannel));
 	}
 	
 	public Collection<ResourceNode> getResouceNodes(){
 		return nodeMap.values();
 	}
 	
-	public ResourceNode getResouceNode(IdentifierTemplate identifierTemplate) {
+	public ResourceNode getResouceNode(ResourcePath resourcePath) {
 //		if(nodeMap.get(identifierTemplate) == null) throw new NullPointerException(identifierTemplate.getResourceName() + " was not found.");	// Because with this statement, the original JumpGame.model cannot be read.
-		return nodeMap.get(identifierTemplate);
+		return nodeMap.get(resourcePath);
 	}
 
 	@Override

@@ -3,18 +3,18 @@ package models.dataFlowModel;
 import models.*;
 
 public class DataFlowEdge extends Edge {
-	protected DataTransferChannelGenerator channelGenerator = null;
+	protected DataTransferChannel channel = null;
 
-	public DataFlowEdge(ResourceNode src, ResourceNode dst, DataTransferChannelGenerator channelGenerator) {
+	public DataFlowEdge(ResourceNode src, ResourceNode dst, DataTransferChannel channel) {
 		super(src, dst);
-		this.channelGenerator = channelGenerator;
+		this.channel = channel;
 	}
 	
-	public DataTransferChannelGenerator getChannelGenerator() {
-		return channelGenerator;
+	public DataTransferChannel getChannel() {
+		return channel;
 	}
 	
 	public String toString() {
-		return channelGenerator.getChannelName();
+		return channel.getChannelName();
 	}
 }

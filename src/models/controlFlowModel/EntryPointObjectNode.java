@@ -1,27 +1,27 @@
 package models.controlFlowModel;
 
-import models.dataFlowModel.DataTransferChannelGenerator;
+import models.dataFlowModel.DataTransferChannel;
 
 /*************************************************************
  * An object is mapped to I/O channel.
  * ToDo: Fecthing name from <Channel-Generator> in Data-Flow-Graph
  */
 public class EntryPointObjectNode extends ObjectNode {
-	DataTransferChannelGenerator ioChannelGenerator = null;
+	DataTransferChannel ioChannel = null;
 
 	/*************************************************************
 	 * [ *constructor ]
 	/*************************************************************
 	 * 
 	 */
-	public EntryPointObjectNode(DataTransferChannelGenerator ioChannelGenerator) {
+	public EntryPointObjectNode(DataTransferChannel ioChannel) {
 		super(null);
-		this.ioChannelGenerator = ioChannelGenerator;
+		this.ioChannel = ioChannel;
 	}
 	
-	public EntryPointObjectNode(String name, DataTransferChannelGenerator ioChannelGenerator) {
+	public EntryPointObjectNode(String name, DataTransferChannel ioChannel) {
 		super(name);
-		this.ioChannelGenerator = ioChannelGenerator;
+		this.ioChannel = ioChannel;
 	}
 	
 	/*************************************************************
@@ -29,12 +29,12 @@ public class EntryPointObjectNode extends ObjectNode {
 	/*************************************************************
 	 * 
 	 */
-	public DataTransferChannelGenerator getIoChannelGenerator() {
-		return ioChannelGenerator;
+	public DataTransferChannel getIOChannel() {
+		return ioChannel;
 	}
 
-	public void setIoChannelGenerator(DataTransferChannelGenerator ioChannelGenerator) {
-		this.ioChannelGenerator = ioChannelGenerator;
+	public void setIOChannel(DataTransferChannel ioChannel) {
+		this.ioChannel = ioChannel;
 	}
 	
 }

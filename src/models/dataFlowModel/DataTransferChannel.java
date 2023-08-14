@@ -15,12 +15,12 @@ import models.algebra.ValueUndefined;
 import models.algebra.Variable;
 import models.dataConstraintModel.*;
 
-public class DataTransferChannelGenerator extends ChannelGenerator {
+public class DataTransferChannel extends Channel {
 	protected Set<ChannelMember> inputChannelMembers = null;
 	protected Set<ChannelMember> outputChannelMembers = null;
 	protected Set<ChannelMember> referenceChannelMembers = null;
 	
-	public DataTransferChannelGenerator(String channelName) {
+	public DataTransferChannel(String channelName) {
 		super(channelName);
 		inputChannelMembers = new HashSet<>();
 		outputChannelMembers = new HashSet<>();
@@ -78,23 +78,23 @@ public class DataTransferChannelGenerator extends ChannelGenerator {
 		addReferenceChannelMember(groupDependentResource);
 	}
 	
-	public void removeChannelMember(IdentifierTemplate id) {
+	public void removeChannelMember(ResourcePath id) {
 		for (ChannelMember cm: inputChannelMembers) {
-			if (cm.getIdentifierTemplate() == id) {
+			if (cm.getResource() == id) {
 				inputChannelMembers.remove(cm);
 				super.removeChannelMember(id);
 				return;
 			}
 		}
 		for (ChannelMember cm: outputChannelMembers) {
-			if (cm.getIdentifierTemplate() == id) {
+			if (cm.getResource() == id) {
 				outputChannelMembers.remove(cm);
 				super.removeChannelMember(id);
 				return;
 			}
 		}
 		for (ChannelMember cm: referenceChannelMembers) {
-			if (cm.getIdentifierTemplate() == id) {
+			if (cm.getResource() == id) {
 				referenceChannelMembers.remove(cm);
 				super.removeChannelMember(id);
 				return;
@@ -102,28 +102,28 @@ public class DataTransferChannelGenerator extends ChannelGenerator {
 		}
 	}
 	
-	public Set<IdentifierTemplate> getInputIdentifierTemplates() {
-		Set<IdentifierTemplate> inputIdentifierTemplates = new HashSet<>();
+	public Set<ResourcePath> getInputResources() {
+		Set<ResourcePath> inputResources = new HashSet<>();
 		for (ChannelMember member: inputChannelMembers) {
-			inputIdentifierTemplates.add(member.getIdentifierTemplate());
+			inputResources.add(member.getResource());
 		}
-		return inputIdentifierTemplates;
+		return inputResources;
 	}
 	
-	public Set<IdentifierTemplate> getOutputIdentifierTemplates() {
-		Set<IdentifierTemplate> outputIdentifierTemplates = new HashSet<>();
+	public Set<ResourcePath> getOutputResources() {
+		Set<ResourcePath> outputResources = new HashSet<>();
 		for (ChannelMember member: outputChannelMembers) {
-			outputIdentifierTemplates.add(member.getIdentifierTemplate());
+			outputResources.add(member.getResource());
 		}
-		return outputIdentifierTemplates;
+		return outputResources;
 	}
 	
-	public Set<IdentifierTemplate> getReferenceIdentifierTemplates() {
-		Set<IdentifierTemplate> referenceIdentifierTemplates = new HashSet<>();
+	public Set<ResourcePath> getReferenceResources() {
+		Set<ResourcePath> referenceResources = new HashSet<>();
 		for (ChannelMember member: referenceChannelMembers) {
-			referenceIdentifierTemplates.add(member.getIdentifierTemplate());
+			referenceResources.add(member.getResource());
 		}
-		return referenceIdentifierTemplates;
+		return referenceResources;
 	}
 	
 	/**
@@ -142,7 +142,7 @@ public class DataTransferChannelGenerator extends ChannelGenerator {
 			HashMap<String, Parameter> nextStateParams = new HashMap<>();
 
 			@Override
-			public Expression getCurrentStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			public Expression getCurrentStateAccessorFor(ResourcePath target, ResourcePath from) {
 				String resource = target.getResourceName();
 				Parameter curStateParam = curStateParams.get(resource);
 				if (curStateParam == null) {
@@ -153,7 +153,7 @@ public class DataTransferChannelGenerator extends ChannelGenerator {
 			}
 
 			@Override
-			public Expression getNextStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			public Expression getNextStateAccessorFor(ResourcePath target, ResourcePath from) {
 				String resource = target.getResourceName();
 				Parameter nextStateParam = nextStateParams.get(resource);
 				if (nextStateParam == null) {
@@ -182,25 +182,25 @@ public class DataTransferChannelGenerator extends ChannelGenerator {
 		return deriveUpdateExpressionOf(targetMember, stateAccessor, null);
 	}
 
-	public Expression deriveUpdateExpressionOf(ChannelMember targetMember, IResourceStateAccessor stateAccessor, HashMap<IdentifierTemplate, IResourceStateAccessor> inputIdentifierToStateAccessor) 
+	public Expression deriveUpdateExpressionOf(ChannelMember targetMember, IResourceStateAccessor stateAccessor, HashMap<ResourcePath, IResourceStateAccessor> inputResourceToStateAccessor) 
 			throws ParameterizedIdentifierIsFutureWork, ResolvingMultipleDefinitionIsFutureWork, InvalidMessage, UnificationFailed, ValueUndefined {
 		if (!getOutputChannelMembers().contains(targetMember)) return null;
 		HashSet<Term> messageConstraints = new HashSet<>();
 		
 		// Calculate message constraints from input state transitions
 		for (ChannelMember inputMember: getInputChannelMembers()) {
-			IdentifierTemplate inputIdentifier = inputMember.getIdentifierTemplate();
-			if (inputIdentifier.getNumberOfParameters() > 0) {
+			ResourcePath inputResource = inputMember.getResource();
+			if (inputResource.getNumberOfParameters() > 0) {
 				throw new ParameterizedIdentifierIsFutureWork();
 			}
 			Expression curInputStateAccessor = null;
 			Expression nextInputStateAccessor = null;
-			if (inputIdentifierToStateAccessor == null) {
-				curInputStateAccessor = stateAccessor.getCurrentStateAccessorFor(inputIdentifier, targetMember.getIdentifierTemplate());
-				nextInputStateAccessor = stateAccessor.getNextStateAccessorFor(inputIdentifier, targetMember.getIdentifierTemplate());
+			if (inputResourceToStateAccessor == null) {
+				curInputStateAccessor = stateAccessor.getCurrentStateAccessorFor(inputResource, targetMember.getResource());
+				nextInputStateAccessor = stateAccessor.getNextStateAccessorFor(inputResource, targetMember.getResource());
 			} else {
-				curInputStateAccessor = inputIdentifierToStateAccessor.get(inputIdentifier).getCurrentStateAccessorFor(inputIdentifier, targetMember.getIdentifierTemplate());
-				nextInputStateAccessor = inputIdentifierToStateAccessor.get(inputIdentifier).getNextStateAccessorFor(inputIdentifier, targetMember.getIdentifierTemplate());
+				curInputStateAccessor = inputResourceToStateAccessor.get(inputResource).getCurrentStateAccessorFor(inputResource, targetMember.getResource());
+				nextInputStateAccessor = inputResourceToStateAccessor.get(inputResource).getNextStateAccessorFor(inputResource, targetMember.getResource());
 			}
 			Expression messageConstraintByInput = inputMember.getStateTransition().deriveMessageConstraintFor(curInputStateAccessor, nextInputStateAccessor);
 			messageConstraints.add((Term) messageConstraintByInput);
@@ -208,15 +208,15 @@ public class DataTransferChannelGenerator extends ChannelGenerator {
 
 		// Calculate message constraints from reference state transitions
 		for (ChannelMember referenceMember: getReferenceChannelMembers()) {
-			IdentifierTemplate referenceIdentifier = referenceMember.getIdentifierTemplate();
-			if (referenceIdentifier.getNumberOfParameters() > 0) {
+			ResourcePath referenceResource = referenceMember.getResource();
+			if (referenceResource.getNumberOfParameters() > 0) {
 				throw new ParameterizedIdentifierIsFutureWork();
 			}
 			Expression curInputStateAccessor = null;
-			if (inputIdentifierToStateAccessor == null) {
-				curInputStateAccessor = stateAccessor.getCurrentStateAccessorFor(referenceIdentifier, targetMember.getIdentifierTemplate());
+			if (inputResourceToStateAccessor == null) {
+				curInputStateAccessor = stateAccessor.getCurrentStateAccessorFor(referenceResource, targetMember.getResource());
 			} else {
-				curInputStateAccessor = inputIdentifierToStateAccessor.get(referenceIdentifier).getCurrentStateAccessorFor(referenceIdentifier, targetMember.getIdentifierTemplate());
+				curInputStateAccessor = inputResourceToStateAccessor.get(referenceResource).getCurrentStateAccessorFor(referenceResource, targetMember.getResource());
 			}
 			Expression messageConstraintByReference = referenceMember.getStateTransition().deriveMessageConstraintFor(curInputStateAccessor);
 			messageConstraints.add((Term) messageConstraintByReference);
@@ -236,11 +236,11 @@ public class DataTransferChannelGenerator extends ChannelGenerator {
 		}
 		
 		// Calculate the next state of target resource from the unified message and the current resource state
-		IdentifierTemplate targetIdentifier = targetMember.getIdentifierTemplate();
-		if (targetIdentifier.getNumberOfParameters() > 0) {
+		ResourcePath targetResource = targetMember.getResource();
+		if (targetResource.getNumberOfParameters() > 0) {
 			throw new ParameterizedIdentifierIsFutureWork();
 		}
-		Expression curOutputStateAccessor = stateAccessor.getCurrentStateAccessorFor(targetIdentifier, targetIdentifier);
+		Expression curOutputStateAccessor = stateAccessor.getCurrentStateAccessorFor(targetResource, targetResource);
 		if (unifiedMessage == null) {
 			// for IOChannel
 			if (targetMember.getStateTransition().getMessageExpression() instanceof Term) {
@@ -267,7 +267,7 @@ public class DataTransferChannelGenerator extends ChannelGenerator {
 	}
 	
 	public interface IResourceStateAccessor {
-		Expression getCurrentStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from);
-		Expression getNextStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from);
+		Expression getCurrentStateAccessorFor(ResourcePath target, ResourcePath from);
+		Expression getNextStateAccessorFor(ResourcePath target, ResourcePath from);
 	}
 }

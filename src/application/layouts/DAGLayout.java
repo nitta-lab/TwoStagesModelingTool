@@ -16,8 +16,8 @@ import com.mxgraph.view.mxGraph;
 import com.mxgraph.view.mxGraphView;
 
 import models.controlFlowModel.ObjectNodeAttribute;
-import models.dataConstraintModel.ChannelGenerator;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.Channel;
+import models.dataConstraintModel.ResourcePath;
 import models.dataFlowModel.ResourceNodeAttribute;
 
 public class DAGLayout extends mxGraphLayout {

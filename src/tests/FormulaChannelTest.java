@@ -5,18 +5,18 @@ import org.junit.Test;
 import models.algebra.Symbol;
 import models.dataConstraintModel.ChannelMember;
 import models.dataConstraintModel.DataConstraintModel;
-import models.dataConstraintModel.IdentifierTemplate;
-import models.visualModel.FormulaChannelGenerator;
+import models.dataConstraintModel.ResourcePath;
+import models.visualModel.FormulaChannel;
 
 public class FormulaChannelTest {
 
 	@Test
 	public void test() {
-		IdentifierTemplate id1 = new IdentifierTemplate("r1", 0);
-		IdentifierTemplate id2 = new IdentifierTemplate("r2", 0);
-		IdentifierTemplate id3 = new IdentifierTemplate("r3", 0);
+		ResourcePath id1 = new ResourcePath("r1", 0);
+		ResourcePath id2 = new ResourcePath("r2", 0);
+		ResourcePath id3 = new ResourcePath("r3", 0);
 		
-		FormulaChannelGenerator ch1 = new FormulaChannelGenerator("ch1", DataConstraintModel.add);
+		FormulaChannel ch1 = new FormulaChannel("ch1", DataConstraintModel.add);
 		System.out.println(ch1.getFormula());
 		System.out.println(ch1.getFormulaTerm());
 		System.out.println(ch1.getSourceText());
@@ -33,7 +33,7 @@ public class FormulaChannelTest {
 		System.out.println(ch1.getFormulaTerm());
 		System.out.println(ch1.getSourceText());
 		
-		FormulaChannelGenerator ch2 = new FormulaChannelGenerator("ch2", DataConstraintModel.mul);
+		FormulaChannel ch2 = new FormulaChannel("ch2", DataConstraintModel.mul);
 		System.out.println(ch2.getFormula());
 		System.out.println(ch2.getFormulaTerm());
 		System.out.println(ch2.getSourceText());

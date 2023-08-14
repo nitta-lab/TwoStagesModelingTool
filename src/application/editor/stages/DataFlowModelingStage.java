@@ -20,13 +20,13 @@ import application.editor.Editor;
 import application.editor.Editor.SrcDstAttribute;
 import application.editor.FlowCellEditor;
 import application.editor.Stage;
-import models.dataConstraintModel.ChannelGenerator;
+import models.dataConstraintModel.Channel;
 import models.dataConstraintModel.ChannelMember;
-import models.dataConstraintModel.IdentifierTemplate;
-import models.dataFlowModel.DataTransferChannelGenerator;
+import models.dataConstraintModel.ResourcePath;
+import models.dataFlowModel.DataTransferChannel;
 import models.dataFlowModel.DataTransferModel;
 import models.dataFlowModel.ResourceNodeAttribute;
-import models.visualModel.FormulaChannelGenerator;
+import models.visualModel.FormulaChannel;
 import parser.Parser;
 import parser.Parser.TokenStream;
 import parser.exceptions.ExpectedAssignment;
@@ -187,13 +187,13 @@ public class DataFlowModelingStage extends Stage {
 			geo2.setOffset(new mxPoint(-PORT_RADIUS, -PORT_RADIUS));
 			geo2.setRelative(true);
 
-			Map<DataTransferChannelGenerator, Object> channelsIn = new HashMap<>();
-			Map<DataTransferChannelGenerator, Object> channelsOut = new HashMap<>();
-			Map<IdentifierTemplate, Object> resources = new HashMap<>();
+			Map<DataTransferChannel, Object> channelsIn = new HashMap<>();
+			Map<DataTransferChannel, Object> channelsOut = new HashMap<>();
+			Map<ResourcePath, Object> resources = new HashMap<>();
 
 			// create channel vertices
-			for (ChannelGenerator c: model.getChannelGenerators()) {
-				DataTransferChannelGenerator channelGen = (DataTransferChannelGenerator) c;
+			for (Channel c: model.getChannels()) {
+				DataTransferChannel channelGen = (DataTransferChannel) c;
 				if (channelsIn.get(channelGen) == null || channelsOut.get(channelGen) == null) {
 					Object channel = graph.insertVertex(dataFlowLayer, null, channelGen.getChannelName(), 150, 20, 30, 30); // insert a channel as a vertex
 					mxCell port_in = new mxCell(null, geo1, "shape=ellipse;perimter=ellipsePerimeter");
@@ -208,7 +208,7 @@ public class DataFlowModelingStage extends Stage {
 			}
 
 			// create resource vertices
-			for (IdentifierTemplate res: model.getIdentifierTemplates()) {
+			for (ResourcePath res: model.getResourcePaths()) {
 				// insert a resource as a vertex
 				ResourceNodeAttribute resNodeAttr = new ResourceNodeAttribute(model.getDataFlowGraph().getResouceNode(res));
 				Object resource = graph.insertVertex(
@@ -220,31 +220,31 @@ public class DataFlowModelingStage extends Stage {
 			}
 
 			// add input, output and reference edges
-			for (ChannelGenerator ch: model.getChannelGenerators()) {
-				DataTransferChannelGenerator channelGen = (DataTransferChannelGenerator) ch;
+			for (Channel ch: model.getChannels()) {
+				DataTransferChannel channel = (DataTransferChannel) ch;
 				// input edge
-				for (IdentifierTemplate srcRes: channelGen.getInputIdentifierTemplates()) {
-					graph.insertEdge(dataFlowLayer, null, new SrcDstAttribute(srcRes, channelGen), resources.get(srcRes), channelsIn.get(channelGen), "movable=false;strokeColor=#FF0000");
+				for (ResourcePath srcRes: channel.getInputResources()) {
+					graph.insertEdge(dataFlowLayer, null, new SrcDstAttribute(srcRes, channel), resources.get(srcRes), channelsIn.get(channel), "movable=false;strokeColor=#FF0000");
 				}
 				// output edge
-				for (IdentifierTemplate dstRes: channelGen.getOutputIdentifierTemplates()) {
-					graph.insertEdge(dataFlowLayer, null, new SrcDstAttribute(channelGen, dstRes), channelsOut.get(channelGen), resources.get(dstRes), "movable=false;strokeColor=#FF0000");
+				for (ResourcePath dstRes: channel.getOutputResources()) {
+					graph.insertEdge(dataFlowLayer, null, new SrcDstAttribute(channel, dstRes), channelsOut.get(channel), resources.get(dstRes), "movable=false;strokeColor=#FF0000");
 				}
 				// reference edges
-				for (IdentifierTemplate refRes: channelGen.getReferenceIdentifierTemplates()) {
-					graph.insertEdge(dataFlowLayer, null, null, resources.get(refRes), channelsIn.get(channelGen), "dashed=true;movable=false;strokeColor=#FF0000");
+				for (ResourcePath refRes: channel.getReferenceResources()) {
+					graph.insertEdge(dataFlowLayer, null, null, resources.get(refRes), channelsIn.get(channel), "dashed=true;movable=false;strokeColor=#FF0000");
 				}
 			}
 
-			for (ChannelGenerator ioChannelGen: model.getIOChannelGenerators()) {
-				if (channelsOut.get(ioChannelGen) == null) {
-					Object channel = graph.insertVertex(nodeLayer, null, ioChannelGen.getChannelName(), 150, 20, 30, 30); // insert an I/O channel as a vertex
+			for (Channel ioChannel: model.getIOChannels()) {
+				if (channelsOut.get(ioChannel) == null) {
+					Object channel = graph.insertVertex(nodeLayer, null, ioChannel.getChannelName(), 150, 20, 30, 30); // insert an I/O channel as a vertex
 					mxCell port_out = new mxCell(null, geo2, "shape=ellipse;perimter=ellipsePerimeter");
 					port_out.setVertex(true);
 					graph.addCell(port_out, channel);		// insert the output port of a channel
-					channelsOut.put((DataTransferChannelGenerator) ioChannelGen, port_out);
+					channelsOut.put((DataTransferChannel) ioChannel, port_out);
 					
-					for (IdentifierTemplate outRes: ((DataTransferChannelGenerator) ioChannelGen).getOutputIdentifierTemplates()) {
+					for (ResourcePath outRes: ((DataTransferChannel) ioChannel).getOutputResources()) {
 						graph.insertEdge(dataFlowLayer, null, null, port_out, resources.get(outRes), "movable=false;strokeColor=#FF0000");
 					}
 					
@@ -260,8 +260,8 @@ public class DataFlowModelingStage extends Stage {
 	/*************************************************************
 	 * 
 	 */
-	public void addIdentifierTemplate(IdentifierTemplate res) {
-		getModel().addIdentifierTemplate(res);
+	public void addResourcePath(ResourcePath res) {
+		getModel().addResourcePath(res);
 		graph.getModel().beginUpdate();
 		mxCell root = (mxCell) graph.getDefaultParent();
 		mxCell layer = (mxCell) root.getChildAt(NODE_LAYER);
@@ -276,8 +276,8 @@ public class DataFlowModelingStage extends Stage {
 	/*************************************************************
 	 * 
 	 */
-	public void addChannelGenerator(DataTransferChannelGenerator channelGen) {
-		getModel().addChannelGenerator(channelGen);
+	public void addChannel(DataTransferChannel channelGen) {
+		getModel().addChannel(channelGen);
 		graph.getModel().beginUpdate();
 		mxCell root = (mxCell) graph.getDefaultParent();
 		mxCell layer = (mxCell) root.getChildAt(DATA_FLOW_LAYER);
@@ -305,8 +305,8 @@ public class DataFlowModelingStage extends Stage {
 	/*************************************************************
 	 * 
 	 */
-	public void addIOChannelGenerator(DataTransferChannelGenerator ioChannelGen) {
-		getModel().addIOChannelGenerator(ioChannelGen);
+	public void addIOChannel(DataTransferChannel ioChannelGen) {
+		getModel().addIOChannel(ioChannelGen);
 		graph.getModel().beginUpdate();
 		mxCell root = (mxCell) graph.getDefaultParent();
 		mxCell layer = (mxCell) root.getChildAt(NODE_LAYER);
@@ -324,8 +324,8 @@ public class DataFlowModelingStage extends Stage {
 		}
 	}
 
-	public void addFormulaChannelGenerator(FormulaChannelGenerator formulaChannelGen) {
-		getModel().addChannelGenerator(formulaChannelGen);
+	public void addFormulaChannel(FormulaChannel formulaChannelGen) {
+		getModel().addChannel(formulaChannelGen);
 		graph.getModel().beginUpdate();
 		mxCell root = (mxCell) graph.getDefaultParent();
 		mxCell layer = (mxCell) root.getChildAt(DATA_FLOW_LAYER);
@@ -352,25 +352,25 @@ public class DataFlowModelingStage extends Stage {
 
 	public boolean connectEdge(mxCell edge, mxCell src, mxCell dst) {
 		DataTransferModel model = getModel();
-		ChannelGenerator srcCh = model.getChannelGenerator((String) src.getValue());
+		Channel srcCh = model.getChannel((String) src.getValue());
 		if (srcCh == null) {
-			srcCh = model.getIOChannelGenerator((String) src.getValue());
+			srcCh = model.getIOChannel((String) src.getValue());
 			if (srcCh == null) {
-				IdentifierTemplate srcRes = model.getIdentifierTemplate((String) src.getValue());
-				ChannelGenerator dstCh = model.getChannelGenerator((String) dst.getValue());
+				ResourcePath srcRes = model.getResourcePath((String) src.getValue());
+				Channel dstCh = model.getChannel((String) dst.getValue());
 				if (srcRes == null || dstCh == null) return false;
 				// resource to channel edge
 				ChannelMember srcCm = new ChannelMember(srcRes);
-				((DataTransferChannelGenerator ) dstCh).addChannelMemberAsInput(srcCm);
+				((DataTransferChannel ) dstCh).addChannelMemberAsInput(srcCm);
 				edge.setValue(new SrcDstAttribute(srcRes, dstCh));
 				return true;
 			}
 		}
-		IdentifierTemplate dstRes = model.getIdentifierTemplate((String) dst.getValue());
+		ResourcePath dstRes = model.getResourcePath((String) dst.getValue());
 		if (dstRes == null) return false;
 		// channel to resource edge
 		ChannelMember dstCm = new ChannelMember(dstRes);
-		((DataTransferChannelGenerator) srcCh).addChannelMemberAsOutput(dstCm);
+		((DataTransferChannel) srcCh).addChannelMemberAsOutput(dstCm);
 		edge.setValue(new SrcDstAttribute(srcCh, dstRes));
 		return true;
 	}
@@ -384,26 +384,26 @@ public class DataFlowModelingStage extends Stage {
 			if (cell.isEdge()) {
 				String srcName = (String) cell.getSource().getValue();
 				String dstName = (String) cell.getTarget().getValue();
-				if (model.getIdentifierTemplate(srcName) != null) {
+				if (model.getResourcePath(srcName) != null) {
 					// resource to channel edge
-					ChannelGenerator ch = model.getChannelGenerator(dstName);
-					ch.removeChannelMember(model.getIdentifierTemplate(srcName));
-				} else if (model.getIdentifierTemplate(dstName) != null) {
+					Channel ch = model.getChannel(dstName);
+					ch.removeChannelMember(model.getResourcePath(srcName));
+				} else if (model.getResourcePath(dstName) != null) {
 					// channel to resource edge
-					ChannelGenerator ch = model.getChannelGenerator(srcName);
+					Channel ch = model.getChannel(srcName);
 					if (ch == null) {
-						ch = model.getIOChannelGenerator(srcName);
+						ch = model.getIOChannel(srcName);
 					}
-					ch.removeChannelMember(model.getIdentifierTemplate(dstName));
+					ch.removeChannelMember(model.getResourcePath(dstName));
 				}
 			} else if (cell.isVertex()) {
 				String name = (String) cell.getValue();
-				if (model.getChannelGenerator(name) != null) {
-					model.removeChannelGenerator(name);
-				} else if (model.getIOChannelGenerator(name) != null) {
-					model.removeIOChannelGenerator(name);
-				} else if (model.getIdentifierTemplate(name) != null) {
-					model.removeIdentifierTemplate(name);
+				if (model.getChannel(name) != null) {
+					model.removeChannel(name);
+				} else if (model.getIOChannel(name) != null) {
+					model.removeIOChannel(name);
+				} else if (model.getResourcePath(name) != null) {
+					model.removeResourcePath(name);
 				}
 			}
 		}
@@ -413,7 +413,7 @@ public class DataFlowModelingStage extends Stage {
 	/*************************************************************
 	 * 
 	 */
-	public void setChannelCode(DataTransferChannelGenerator ch, String code) {
+	public void setChannelCode(DataTransferChannel ch, String code) {
 		ch.setSourceText(code);
 		TokenStream stream = new TokenStream();
 		Parser parser = new Parser(stream);
@@ -422,10 +422,10 @@ public class DataFlowModelingStage extends Stage {
 			stream.addLine(line);
 		}
 		try {
-			DataTransferChannelGenerator ch2 = parser.parseChannel(getModel());
+			DataTransferChannel ch2 = parser.parseChannel(getModel());
 			for (ChannelMember chm2: ch2.getInputChannelMembers()) {
 				for (ChannelMember chm: ch.getInputChannelMembers()) {
-					if (chm2.getIdentifierTemplate() == chm.getIdentifierTemplate()) {
+					if (chm2.getResource() == chm.getResource()) {
 						chm.setStateTransition(chm2.getStateTransition());
 						break;
 					}
@@ -433,7 +433,7 @@ public class DataFlowModelingStage extends Stage {
 			}
 			for (ChannelMember chm2: ch2.getOutputChannelMembers()) {
 				for (ChannelMember chm: ch.getOutputChannelMembers()) {
-					if (chm2.getIdentifierTemplate() == chm.getIdentifierTemplate()) {
+					if (chm2.getResource() == chm.getResource()) {
 						chm.setStateTransition(chm2.getStateTransition());
 						break;
 					}
@@ -441,7 +441,7 @@ public class DataFlowModelingStage extends Stage {
 			}
 			for (ChannelMember chm2: ch2.getReferenceChannelMembers()) {
 				for (ChannelMember chm: ch.getReferenceChannelMembers()) {
-					if (chm2.getIdentifierTemplate() == chm.getIdentifierTemplate()) {
+					if (chm2.getResource() == chm.getResource()) {
 						chm.setStateTransition(chm2.getStateTransition());
 						break;
 					}

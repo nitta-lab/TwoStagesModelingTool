@@ -6,7 +6,7 @@ public class StatefulObjectNode extends ObjectNode {
 	private ResourceNode resource;
 	
 	public StatefulObjectNode(ResourceNode resource) {
-		super(resource.getIdentifierTemplate().getResourceName());
+		super(resource.getResource().getResourceName());
 		this.resource = resource;
 	}
 

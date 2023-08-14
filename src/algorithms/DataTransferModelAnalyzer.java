@@ -24,22 +24,22 @@ public class DataTransferModelAnalyzer {
 	 */
 	static public DataFlowGraph createDataFlowGraphWithStateStoringAttribute(DataTransferModel model) {
 		DataFlowGraph graph = model.getDataFlowGraph();
-		Collection<ChannelGenerator> channels = new HashSet<>(model.getIOChannelGenerators());
-		channels.addAll(model.getChannelGenerators());
-		for (ChannelGenerator generator: channels) {
-			for (ChannelMember member: ((DataTransferChannelGenerator) generator).getOutputChannelMembers()) {
+		Collection<Channel> channels = new HashSet<>(model.getIOChannels());
+		channels.addAll(model.getChannels());
+		for (Channel channel: channels) {
+			for (ChannelMember member: ((DataTransferChannel) channel).getOutputChannelMembers()) {
 				boolean flag = !member.getStateTransition().isRightUnary();		// The state does not need to be stored if the state transition function is right unary.
 				for (Node node : graph.getNodes()) {
-					if (((ResourceNode) node).getIdentifierTemplate().equals(member.getIdentifierTemplate())) {
+					if (((ResourceNode) node).getResource().equals(member.getResource())) {
 						setStoreAttribute(flag, (ResourceNode) node);
 					}
 				}
 			}
 		}
 		for (Node node : graph.getNodes()) {
-			HashSet<ChannelGenerator> inChannels = new HashSet<>();
+			HashSet<Channel> inChannels = new HashSet<>();
 			for(Edge pre : ((ResourceNode) node).getInEdges()) {
-				inChannels.add(((DataFlowEdge) pre).getChannelGenerator());
+				inChannels.add(((DataFlowEdge) pre).getChannel());
 			}
 			if ((inChannels.size() > 1)) {
 				setStoreAttribute(true, (ResourceNode) node);

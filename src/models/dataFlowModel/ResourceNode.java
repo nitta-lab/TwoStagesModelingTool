@@ -1,30 +1,30 @@
 package models.dataFlowModel;
 
 import models.Node;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.ResourcePath;
 
 public class ResourceNode extends Node {
-	protected IdentifierTemplate identifierTemplate = null;
+	protected ResourcePath resourcePath = null;
 
-	public ResourceNode(IdentifierTemplate identifierTemplate) {
-		this.identifierTemplate = identifierTemplate;
+	public ResourceNode(ResourcePath resourcePath) {
+		this.resourcePath = resourcePath;
 	}
 	
-	public IdentifierTemplate getIdentifierTemplate() {
-		return identifierTemplate;
+	public ResourcePath getResource() {
+		return resourcePath;
 	}
 	
 	public boolean equals(Object another) {
 		if (this == another) return true;
 		if (!(another instanceof ResourceNode)) return false;
-		return identifierTemplate.equals(((ResourceNode)another).identifierTemplate);
+		return resourcePath.equals(((ResourceNode)another).resourcePath);
 	}
 	
 	public int hashCode() {
-		return identifierTemplate.hashCode();
+		return resourcePath.hashCode();
 	}
 	
 	public String toString() {
-		return identifierTemplate.getResourceName();
+		return resourcePath.getResourceName();
 	}
 }

@@ -25,18 +25,18 @@ import models.algebra.Variable;
 import models.controlFlowModel.EntryPointObjectNode;
 import models.controlFlowModel.ObjectNode;
 import models.controlFlowModel.StatefulObjectNode;
-import models.dataConstraintModel.ChannelGenerator;
+import models.dataConstraintModel.Channel;
 import models.dataConstraintModel.ChannelMember;
 import models.dataConstraintModel.DataConstraintModel;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.ResourcePath;
 import models.dataFlowModel.DataFlowEdge;
-import models.dataFlowModel.DataTransferChannelGenerator;
+import models.dataFlowModel.DataTransferChannel;
 import models.dataFlowModel.DataTransferModel;
 import models.dataFlowModel.IFlowGraph;
 import models.dataFlowModel.PushPullAttribute;
 import models.dataFlowModel.PushPullValue;
 import models.dataFlowModel.ResourceNode;
-import models.dataFlowModel.DataTransferChannelGenerator.IResourceStateAccessor;
+import models.dataFlowModel.DataTransferChannel.IResourceStateAccessor;
 
 /**
  * Common generator for prototypes
@@ -142,9 +142,9 @@ public abstract class CodeGenerator {
 				}
 				if (rn != null) {
 					for (Edge e: rn.getOutEdges()) {
-						DataTransferChannelGenerator ch = ((DataFlowEdge) e).getChannelGenerator();
+						DataTransferChannel ch = ((DataFlowEdge) e).getChannel();
 						for (ChannelMember m: ch.getReferenceChannelMembers()) {
-							if (m.getIdentifierTemplate() == cn.getIdentifierTemplate()) {
+							if (m.getResource() == cn.getResource()) {
 								topologicalSort(allNodes, n, visited, orderedList);
 							}
 						}
@@ -156,13 +156,13 @@ public abstract class CodeGenerator {
 	}
 
 	protected void updateMainComponent(DataTransferModel model, TypeDeclaration mainType, MethodDeclaration mainConstructor, Node componentNode, 
-			final List<IdentifierTemplate> depends, ILanguageSpecific langSpec) {
+			final List<ResourcePath> depends, ILanguageSpecific langSpec) {
 		// Declare the field to refer to each object in the main type.
 		ResourceNode resNode = null;
 		String nodeName = null;
 		if (componentNode instanceof ResourceNode) {
 			resNode = (ResourceNode) componentNode;
-			nodeName = resNode.getIdentifierTemplate().getResourceName();
+			nodeName = resNode.getResource().getResourceName();
 		} else if (componentNode instanceof ObjectNode) {
 			nodeName = ((ObjectNode) componentNode).getName();
 			if (componentNode instanceof StatefulObjectNode) {
@@ -177,17 +177,17 @@ public abstract class CodeGenerator {
 		}
 		// Add a statement to instantiate each object to the main constructor.
 		List<String> parameters = new ArrayList<>();
-		for (IdentifierTemplate id: depends) {
+		for (ResourcePath id: depends) {
 			// For the callee objects (the destination resource of push transfer or the source resource of pull transfer).
 			parameters.add(id.getResourceName());
 		}
 		// For the refs. 
 		if (resNode != null) {
-			Set<IdentifierTemplate> refs = new HashSet<>();
-			for (ChannelGenerator cg : model.getChannelGenerators()) {
-				DataTransferChannelGenerator ch = (DataTransferChannelGenerator) cg;
-				if (ch.getInputIdentifierTemplates().contains(resNode.getIdentifierTemplate())) {
-					for (IdentifierTemplate id: ch.getReferenceIdentifierTemplates()) {
+			Set<ResourcePath> refs = new HashSet<>();
+			for (Channel cg : model.getChannels()) {
+				DataTransferChannel ch = (DataTransferChannel) cg;
+				if (ch.getInputResources().contains(resNode.getResource())) {
+					for (ResourcePath id: ch.getReferenceResources()) {
 						if (!refs.contains(id) && !depends.contains(id)) {
 							refs.add(id);
 							String refResName = id.getResourceName();
@@ -209,7 +209,7 @@ public abstract class CodeGenerator {
 	protected void addReference(TypeDeclaration component, MethodDeclaration constructor, Node dstNode, ILanguageSpecific langSpec) {
 		String dstNodeName = null;
 		if (dstNode instanceof ResourceNode) {
-			dstNodeName = ((ResourceNode) dstNode).getIdentifierTemplate().getResourceName();
+			dstNodeName = ((ResourceNode) dstNode).getResource().getResourceName();
 		} else if (dstNode instanceof ObjectNode) {
 			dstNodeName = ((ObjectNode) dstNode).getName();
 		}
@@ -245,7 +245,7 @@ public abstract class CodeGenerator {
 		}
 	}
 
-	protected void declareAccessorInMainComponent(TypeDeclaration mainComponent, IdentifierTemplate accessResId, ILanguageSpecific langSpec) {
+	protected void declareAccessorInMainComponent(TypeDeclaration mainComponent, ResourcePath accessResId, ILanguageSpecific langSpec) {
 		MethodDeclaration getter = new MethodDeclaration("get" + langSpec.toComponentName(accessResId.getResourceName()), accessResId.getResourceStateType());
 		Block block = new Block();
 		block.addStatement(langSpec.getReturnStatement(langSpec.getMethodInvocation(accessResId.getResourceName(), getterOfResourceState)) + langSpec.getStatementDelimiter());
@@ -254,12 +254,12 @@ public abstract class CodeGenerator {
 	}
 
 	protected void declareFieldsToReferenceResources(DataTransferModel model, ResourceNode resourceNode, TypeDeclaration component, MethodDeclaration constructor,
-			final List<IdentifierTemplate> depends, ILanguageSpecific langSpec) {
-		Set<IdentifierTemplate> refs = new HashSet<>();
-		for (ChannelGenerator ch : model.getChannelGenerators()) {
-			DataTransferChannelGenerator c = (DataTransferChannelGenerator) ch;
-			if (c.getInputIdentifierTemplates().contains(resourceNode.getIdentifierTemplate())) {
-				for (IdentifierTemplate id: c.getReferenceIdentifierTemplates()) {
+			final List<ResourcePath> depends, ILanguageSpecific langSpec) {
+		Set<ResourcePath> refs = new HashSet<>();
+		for (Channel ch : model.getChannels()) {
+			DataTransferChannel c = (DataTransferChannel) ch;
+			if (c.getInputResources().contains(resourceNode.getResource())) {
+				for (ResourcePath id: c.getReferenceResources()) {
 					if (!refs.contains(id) && !depends.contains(id)) {
 						refs.add(id);
 						String refResName = langSpec.toComponentName(id.getResourceName());
@@ -277,16 +277,16 @@ public abstract class CodeGenerator {
 		List<ResourceNode> passedResoueces = dataFlowInform.get(inEdge).get(PushPullValue.PUSH);
 		String methodName = updateMethodName;
 		for (ResourceNode rn: passedResoueces) {
-			IdentifierTemplate rId = rn.getIdentifierTemplate();
+			ResourcePath rId = rn.getResource();
 			methodName += langSpec.toComponentName(rId.getResourceName());
 		}
 		return getMethod(component, methodName);
 	}
 
-	protected MethodDeclaration getInputMethod(ResourceNode resourceNode, DataTransferChannelGenerator ch, TypeDeclaration component) {
+	protected MethodDeclaration getInputMethod(ResourceNode resourceNode, DataTransferChannel ch, TypeDeclaration component) {
 		MethodDeclaration input = null;
 		for (ChannelMember out : ch.getOutputChannelMembers()) {
-			if (out.getIdentifierTemplate().equals(resourceNode.getIdentifierTemplate())) {
+			if (out.getResource().equals(resourceNode.getResource())) {
 				Expression message = out.getStateTransition().getMessageExpression();
 				if (message instanceof Term) {
 					input = getMethod(component, ((Term) message).getSymbol().getImplName());
@@ -310,7 +310,7 @@ public abstract class CodeGenerator {
 	protected IResourceStateAccessor getPushAccessor() {
 		return new IResourceStateAccessor() {
 			@Override
-			public Expression getCurrentStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			public Expression getCurrentStateAccessorFor(ResourcePath target, ResourcePath from) {
 				if (target.equals(from)) {
 					return new Field(fieldOfResourceState,
 							target.getResourceStateType() != null ? target.getResourceStateType()
@@ -323,7 +323,7 @@ public abstract class CodeGenerator {
 			}
 
 			@Override
-			public Expression getNextStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			public Expression getNextStateAccessorFor(ResourcePath target, ResourcePath from) {
 				return new Parameter(target.getResourceName(),
 						target.getResourceStateType() != null ? target.getResourceStateType()
 								: DataConstraintModel.typeInt);
@@ -334,7 +334,7 @@ public abstract class CodeGenerator {
 	protected IResourceStateAccessor getPullAccessor() {
 		return new IResourceStateAccessor() {
 			@Override
-			public Expression getCurrentStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			public Expression getCurrentStateAccessorFor(ResourcePath target, ResourcePath from) {
 				if (target.equals(from)) {
 					return new Field(fieldOfResourceState,
 							target.getResourceStateType() != null ? target.getResourceStateType()
@@ -347,7 +347,7 @@ public abstract class CodeGenerator {
 			}
 
 			@Override
-			public Expression getNextStateAccessorFor(IdentifierTemplate target, IdentifierTemplate from) {
+			public Expression getNextStateAccessorFor(ResourcePath target, ResourcePath from) {
 				Term getter = new Term(new Symbol(getterOfResourceState, 1, Symbol.Type.METHOD));
 				getter.addChild(new Field(target.getResourceName(), target.getResourceStateType()));
 				return getter;

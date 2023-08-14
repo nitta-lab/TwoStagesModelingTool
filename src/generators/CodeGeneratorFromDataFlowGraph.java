@@ -23,11 +23,11 @@ import models.algebra.Type;
 import models.algebra.UnificationFailed;
 import models.algebra.ValueUndefined;
 import models.algebra.Variable;
-import models.dataConstraintModel.ChannelGenerator;
+import models.dataConstraintModel.Channel;
 import models.dataConstraintModel.ChannelMember;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.ResourcePath;
 import models.dataFlowModel.DataFlowEdge;
-import models.dataFlowModel.DataTransferChannelGenerator;
+import models.dataFlowModel.DataTransferChannel;
 import models.dataFlowModel.DataTransferModel;
 import models.dataFlowModel.IFlowGraph;
 import models.dataFlowModel.PushPullAttribute;
@@ -35,7 +35,7 @@ import models.dataFlowModel.PushPullValue;
 import models.dataFlowModel.ResolvingMultipleDefinitionIsFutureWork;
 import models.dataFlowModel.ResourceNode;
 import models.dataFlowModel.StoreAttribute;
-import models.dataFlowModel.DataTransferChannelGenerator.IResourceStateAccessor;
+import models.dataFlowModel.DataTransferChannel.IResourceStateAccessor;
 
 public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 
@@ -45,17 +45,17 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 		for (Node componentNode: components) {
 			// Declare this resource.
 			ResourceNode resourceNode = (ResourceNode) componentNode;
-			String resourceName = langSpec.toComponentName(resourceNode.getIdentifierTemplate().getResourceName());
+			String resourceName = langSpec.toComponentName(resourceNode.getResource().getResourceName());
 			TypeDeclaration component = langSpec.newTypeDeclaration(resourceName);
 			
 			// Declare the constructor and the fields to refer to other resources.
-			List<IdentifierTemplate> depends = new ArrayList<>();
+			List<ResourcePath> depends = new ArrayList<>();
 			MethodDeclaration constructor = declareConstructorAndFieldsToReferToResources(resourceNode, component, depends, langSpec);
 			
 			// Update the main component for this component.
 			updateMainComponent(model, mainComponent, mainConstructor, componentNode, depends, langSpec);
 			
-			IdentifierTemplate resId = resourceNode.getIdentifierTemplate();
+			ResourcePath resId = resourceNode.getResource();
 			Type resStateType = resId.getResourceStateType();
 			
 			// Declare the field in this resource to store the state.
@@ -90,7 +90,7 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 	}
 	
 	private MethodDeclaration declareConstructorAndFieldsToReferToResources(ResourceNode resourceNode, TypeDeclaration component, 
-			List<IdentifierTemplate> depends, ILanguageSpecific langSpec) {
+			List<ResourcePath> depends, ILanguageSpecific langSpec) {
 		// Declare a constructor in each component.
 		MethodDeclaration constructor = component.createConstructor();
 		Block block = new Block();
@@ -101,7 +101,7 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 			if (((PushPullAttribute) ((DataFlowEdge) e).getAttribute()).getOptions().get(0) == PushPullValue.PUSH) {
 				// for PUSH transfer
 				addReference(component, constructor, e.getDestination(), langSpec);
-				IdentifierTemplate dstId = ((ResourceNode) e.getDestination()).getIdentifierTemplate();
+				ResourcePath dstId = ((ResourceNode) e.getDestination()).getResource();
 				if (!depends.contains(dstId)) depends.add(dstId);
 			}
 		}
@@ -109,7 +109,7 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 			if (((PushPullAttribute) ((DataFlowEdge) e).getAttribute()).getOptions().get(0) != PushPullValue.PUSH) {
 				// for PULL transfer
 				addReference(component, constructor, e.getSource(), langSpec);
-				IdentifierTemplate srcId = ((ResourceNode) e.getSource()).getIdentifierTemplate();
+				ResourcePath srcId = ((ResourceNode) e.getSource()).getResource();
 				if (!depends.contains(srcId)) depends.add(srcId);
 			}
 		}
@@ -126,29 +126,29 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 		} else {	
 			// invocations to other getter methods when at least one incoming data-flow edges is PULL-style.
 			boolean isContainedPush = false;
-			DataTransferChannelGenerator ch = null;
-			HashMap<IdentifierTemplate, IResourceStateAccessor> inputIdentifierToStateAccessor = new HashMap<>();
+			DataTransferChannel ch = null;
+			HashMap<ResourcePath, IResourceStateAccessor> inputResourceToStateAccessor = new HashMap<>();
 			for (Edge eIn: resourceNode.getInEdges()) {
 				DataFlowEdge dIn = (DataFlowEdge) eIn;
 				if (((PushPullAttribute) dIn.getAttribute()).getOptions().get(0) == PushPullValue.PUSH) {
 					// PUSH transfer
 					isContainedPush = true;
-					inputIdentifierToStateAccessor.put(((ResourceNode) dIn.getSource()).getIdentifierTemplate(), getPushAccessor());
+					inputResourceToStateAccessor.put(((ResourceNode) dIn.getSource()).getResource(), getPushAccessor());
 				} else {
 					// PULL transfer
-					inputIdentifierToStateAccessor.put(((ResourceNode) dIn.getSource()).getIdentifierTemplate(), getPullAccessor());
-					ch = dIn.getChannelGenerator();
+					inputResourceToStateAccessor.put(((ResourceNode) dIn.getSource()).getResource(), getPullAccessor());
+					ch = dIn.getChannel();
 				}
 			}
 			// for reference channel members.
 			for (ChannelMember c: ch.getReferenceChannelMembers()) {
-				inputIdentifierToStateAccessor.put(c.getIdentifierTemplate(), getPullAccessor());			// by pull data transfer
+				inputResourceToStateAccessor.put(c.getResource(), getPullAccessor());			// by pull data transfer
 			}
 			
 			// generate a return statement.
 			try {
 				for (ChannelMember out: ch.getOutputChannelMembers()) {
-					if (out.getIdentifierTemplate() == resourceNode.getIdentifierTemplate()) {
+					if (out.getResource() == resourceNode.getResource()) {
 						String[] sideEffects = new String[] {""};
 						if (!isContainedPush) {
 							// All incoming edges are in PULL-style.
@@ -156,7 +156,7 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 							getter.addStatement(sideEffects[0] + langSpec.getReturnStatement(curState) + langSpec.getStatementDelimiter());
 						} else {
 							// At least one incoming edge is in PUSH-style.
-							String curState = ch.deriveUpdateExpressionOf(out, getPullAccessor(), inputIdentifierToStateAccessor).toImplementation(sideEffects);
+							String curState = ch.deriveUpdateExpressionOf(out, getPullAccessor(), inputResourceToStateAccessor).toImplementation(sideEffects);
 							getter.addStatement(sideEffects[0] + langSpec.getReturnStatement(curState) + langSpec.getStatementDelimiter());
 						}
 						break;
@@ -173,11 +173,11 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 	
 	private List<MethodDeclaration> declareCacheFieldsAndUpdateMethods(ResourceNode resourceNode, TypeDeclaration component, ILanguageSpecific langSpec) {
 		// Declare cash fields and update methods in the component.
-		String resComponentName = langSpec.toComponentName(resourceNode.getIdentifierTemplate().getResourceName());
+		String resComponentName = langSpec.toComponentName(resourceNode.getResource().getResourceName());
 		List<MethodDeclaration> updateMethods = new ArrayList<>();
 		for (Edge e: resourceNode.getInEdges()) {
 			DataFlowEdge re = (DataFlowEdge) e;
-			IdentifierTemplate srcRes = ((ResourceNode) re.getSource()).getIdentifierTemplate();
+			ResourcePath srcRes = ((ResourceNode) re.getSource()).getResource();
 			String srcResName = srcRes.getResourceName();
 			String srcResComponentName = langSpec.toComponentName(srcResName);
 			if (((PushPullAttribute) re.getAttribute()).getOptions().get(0) == PushPullValue.PUSH) {
@@ -187,9 +187,9 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 				ArrayList<VariableDeclaration> vars = new ArrayList<>();
 				vars.add(langSpec.newVariableDeclaration(srcRes.getResourceStateType(), srcRes.getResourceName()));				
 				// For the refs.
-				DataTransferChannelGenerator ch = (DataTransferChannelGenerator) re.getChannelGenerator();
-				for (IdentifierTemplate ref: ch.getReferenceIdentifierTemplates()) {
-					if (ref != resourceNode.getIdentifierTemplate()) {
+				DataTransferChannel ch = (DataTransferChannel) re.getChannel();
+				for (ResourcePath ref: ch.getReferenceResources()) {
+					if (ref != resourceNode.getResource()) {
 						vars.add(langSpec.newVariableDeclaration(ref.getResourceStateType(), ref.getResourceName()));
 					}
 				}
@@ -200,9 +200,9 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 				// Add a statement to update the state field
 				if (((StoreAttribute) resourceNode.getAttribute()).isStored()) {
 					try {
-						for (ChannelMember out: re.getChannelGenerator().getOutputChannelMembers()) {
-							if (out.getIdentifierTemplate() == resourceNode.getIdentifierTemplate()) {
-								Expression updateExp = re.getChannelGenerator().deriveUpdateExpressionOf(out, getPushAccessor());
+						for (ChannelMember out: re.getChannel().getOutputChannelMembers()) {
+							if (out.getResource() == resourceNode.getResource()) {
+								Expression updateExp = re.getChannel().deriveUpdateExpressionOf(out, getPushAccessor());
 								String[] sideEffects = new String[] {""};
 								String curState = updateExp.toImplementation(sideEffects);
 								String updateStatement;
@@ -247,22 +247,22 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 					DataFlowEdge dOut = (DataFlowEdge) eOut;
 					if (((PushPullAttribute) dOut.getAttribute()).getOptions().get(0) == PushPullValue.PUSH) {
 						// PUSH transfer
-						Map<MethodDeclaration, Set<IdentifierTemplate>> referredResources = new HashMap<>(); 
+						Map<MethodDeclaration, Set<ResourcePath>> referredResources = new HashMap<>(); 
 						List<String> params = new ArrayList<>();
 						params.add(langSpec.getFieldAccessor(fieldOfResourceState));
-						Set<IdentifierTemplate> referredSet = referredResources.get(update);
-						for (ChannelMember rc: re.getChannelGenerator().getReferenceChannelMembers()) {
+						Set<ResourcePath> referredSet = referredResources.get(update);
+						for (ChannelMember rc: re.getChannel().getReferenceChannelMembers()) {
 							// to get the value of reference member.
-							IdentifierTemplate ref = rc.getIdentifierTemplate();
+							ResourcePath ref = rc.getResource();
 							if (referredSet == null) {
 								referredSet = new HashSet<>();
 								referredResources.put(update, referredSet);
 							}
-							if (ref != resourceNode.getIdentifierTemplate()) {
+							if (ref != resourceNode.getResource()) {
 								String refVarName = ref.getResourceName();
 								if (!referredSet.contains(ref)) {
 									referredSet.add(ref);
-									Expression refGetter = getPullAccessor().getCurrentStateAccessorFor(ref, ((ResourceNode) dOut.getSource()).getIdentifierTemplate());
+									Expression refGetter = getPullAccessor().getCurrentStateAccessorFor(ref, ((ResourceNode) dOut.getSource()).getResource());
 									String[] sideEffects = new String[] {""};
 									String refExp = refGetter.toImplementation(sideEffects);
 									String refTypeName = ref.getResourceStateType().getInterfaceTypeName();
@@ -271,7 +271,7 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 								params.add(refVarName);
 							}
 						}
-						update.addStatement(langSpec.getMethodInvocation(langSpec.getFieldAccessor(((ResourceNode) dOut.getDestination()).getIdentifierTemplate().getResourceName()), 
+						update.addStatement(langSpec.getMethodInvocation(langSpec.getFieldAccessor(((ResourceNode) dOut.getDestination()).getResource().getResourceName()), 
 																			updateMethodName + resComponentName, 
 																			params) + langSpec.getStatementDelimiter());	// this.dst.updateSrc(value, refParams);
 					}
@@ -284,12 +284,12 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 	private List<MethodDeclaration> declareInputMethodsInThisAndMainComponents(ResourceNode resourceNode, TypeDeclaration component,
 			TypeDeclaration mainComponent, DataTransferModel model, ILanguageSpecific langSpec) {
 		// Declare input methods.
-		String resName = resourceNode.getIdentifierTemplate().getResourceName();
+		String resName = resourceNode.getResource().getResourceName();
 		String resComponentName = langSpec.toComponentName(resName);
 		List<MethodDeclaration> inputMethods = new ArrayList<>();
-		for (ChannelGenerator ch : model.getIOChannelGenerators()) {
-			for (ChannelMember out : ((DataTransferChannelGenerator) ch).getOutputChannelMembers()) {
-				if (out.getIdentifierTemplate().equals(resourceNode.getIdentifierTemplate())) {
+		for (Channel ch : model.getIOChannels()) {
+			for (ChannelMember out : ((DataTransferChannel) ch).getOutputChannelMembers()) {
+				if (out.getResource().equals(resourceNode.getResource())) {
 					Expression message = out.getStateTransition().getMessageExpression();
 					MethodDeclaration input = null;
 					MethodDeclaration mainInput = null;
@@ -354,7 +354,7 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 						try {
 							String[] sideEffects = new String[] {""};
 							Expression updateExp;
-							updateExp = ((DataTransferChannelGenerator) ch).deriveUpdateExpressionOf(out, getPullAccessor());
+							updateExp = ((DataTransferChannel) ch).deriveUpdateExpressionOf(out, getPullAccessor());
 							String newState = updateExp.toImplementation(sideEffects);
 							String updateStatement;
 							if (updateExp instanceof Term && ((Term) updateExp).getSymbol().isImplWithSideEffect()) {
@@ -373,22 +373,22 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 							DataFlowEdge dOut = (DataFlowEdge) eOut;
 							if (((PushPullAttribute) dOut.getAttribute()).getOptions().get(0) == PushPullValue.PUSH) {
 								// PUSH transfer
-								Map<MethodDeclaration, Set<IdentifierTemplate>> referredResources = new HashMap<>(); 
+								Map<MethodDeclaration, Set<ResourcePath>> referredResources = new HashMap<>(); 
 								List<String> params = new ArrayList<>();
 								params.add(langSpec.getFieldAccessor(fieldOfResourceState));
-								Set<IdentifierTemplate> referredSet = referredResources.get(input);
-								for (ChannelMember rc: ((DataTransferChannelGenerator) ch).getReferenceChannelMembers()) {
+								Set<ResourcePath> referredSet = referredResources.get(input);
+								for (ChannelMember rc: ((DataTransferChannel) ch).getReferenceChannelMembers()) {
 									// to get the value of reference member.
-									IdentifierTemplate ref = rc.getIdentifierTemplate();
+									ResourcePath ref = rc.getResource();
 									if (referredSet == null) {
 										referredSet = new HashSet<>();
 										referredResources.put(input, referredSet);
 									}
-									if (ref != resourceNode.getIdentifierTemplate()) {
+									if (ref != resourceNode.getResource()) {
 										String refVarName = ref.getResourceName();
 										if (!referredSet.contains(ref)) {
 											referredSet.add(ref);
-											Expression refGetter = getPullAccessor().getCurrentStateAccessorFor(ref, ((ResourceNode) dOut.getSource()).getIdentifierTemplate());
+											Expression refGetter = getPullAccessor().getCurrentStateAccessorFor(ref, ((ResourceNode) dOut.getSource()).getResource());
 											String[] sideEffects = new String[] {""};
 											String refExp = refGetter.toImplementation(sideEffects);
 											String refTypeName = ref.getResourceStateType().getInterfaceTypeName();
@@ -397,7 +397,7 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 										params.add(refVarName);
 									}
 								}
-								input.addStatement(langSpec.getMethodInvocation(langSpec.getFieldAccessor(((ResourceNode) dOut.getDestination()).getIdentifierTemplate().getResourceName()), 
+								input.addStatement(langSpec.getMethodInvocation(langSpec.getFieldAccessor(((ResourceNode) dOut.getDestination()).getResource().getResourceName()), 
 																					updateMethodName + resComponentName, 
 																					params) + langSpec.getStatementDelimiter());	// this.dst.updateSrc(value, refParams);
 							}

@@ -4,22 +4,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ChannelMember {
-	private IdentifierTemplate identifierTemplate = null;
+	private ResourcePath resourcePath = null;
 	private List<Selector> selectors = null;
 	private StateTransition stateTransition = null;
 	
-	public ChannelMember(IdentifierTemplate identifierTemplate) {
-		this.identifierTemplate = identifierTemplate;
+	public ChannelMember(ResourcePath resourcePath) {
+		this.resourcePath = resourcePath;
 		selectors = new ArrayList<>();
 		stateTransition = new StateTransition();
 	}
 
-	public IdentifierTemplate getIdentifierTemplate() {
-		return identifierTemplate;
+	public ResourcePath getResource() {
+		return resourcePath;
 	}
 
-	public void setIdentifierTemplate(IdentifierTemplate identifierTemplate) {
-		this.identifierTemplate = identifierTemplate;
+	public void setResource(ResourcePath resourcePath) {
+		this.resourcePath = resourcePath;
 	}
 
 	public List<Selector> getSelectors() {
@@ -46,11 +46,11 @@ public class ChannelMember {
 	@Override
 	public String toString() {
 		if (stateTransition.getNextStateExpression() == null) {
-			return identifierTemplate.getResourceName() + "("
+			return resourcePath.getResourceName() + "("
 					+ stateTransition.getCurStateExpression() + ","
 					+ stateTransition.getMessageExpression() + ")";
 		}
-		return identifierTemplate.getResourceName() + "("
+		return resourcePath.getResourceName() + "("
 					+ stateTransition.getCurStateExpression() + ","
 					+ stateTransition.getMessageExpression() + ")"
 					+ " == " + stateTransition.getNextStateExpression();

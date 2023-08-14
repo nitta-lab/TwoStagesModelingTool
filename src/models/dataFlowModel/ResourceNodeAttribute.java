@@ -36,7 +36,7 @@ public class ResourceNodeAttribute extends NodeAttribute {
 	 * 
 	 */
 	public String getResourceName() {
-		return resourceNode.getIdentifierTemplate().getResourceName();
+		return resourceNode.getResource().getResourceName();
 	}
 
 	/*************************************************************
@@ -58,6 +58,6 @@ public class ResourceNodeAttribute extends NodeAttribute {
 	 */
 	@Override
 	public String toString() {
-		return resourceNode.getIdentifierTemplate().getResourceName();
+		return resourceNode.getResource().getResourceName();
 	}
 }

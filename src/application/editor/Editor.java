@@ -27,12 +27,12 @@ import application.layouts.*;
 import code.ast.CompilationUnit;
 import models.EdgeAttribute;
 import models.controlFlowModel.ControlFlowGraph;
-import models.dataConstraintModel.ChannelGenerator;
-import models.dataConstraintModel.IdentifierTemplate;
+import models.dataConstraintModel.Channel;
+import models.dataConstraintModel.ResourcePath;
 import models.dataFlowModel.DataTransferModel;
-import models.dataFlowModel.DataTransferChannelGenerator;
+import models.dataFlowModel.DataTransferChannel;
 import models.dataFlowModel.DataFlowGraph;
-import models.visualModel.FormulaChannelGenerator;
+import models.visualModel.FormulaChannel;
 import parser.Parser;
 import parser.exceptions.ExpectedAssignment;
 import parser.exceptions.ExpectedChannel;
@@ -367,13 +367,13 @@ public class Editor {
 				int w = (int) state.getWidth();
 				int h = (int) state.getHeight();
 
-				for (IdentifierTemplate res: model.getIdentifierTemplates()){
-					if(res instanceof IdentifierTemplate && state.getLabel().equals(res.getResourceName()))
+				for (ResourcePath res: model.getResourcePaths()){
+					if(res instanceof ResourcePath && state.getLabel().equals(res.getResourceName()))
 						fileString += "\tnode r " + state.getLabel() + ":" + x + "," + y + "," + w + "," + h + "\n";
 				}
 
-				for (ChannelGenerator ioC: model.getIOChannelGenerators()) {
-					if(ioC instanceof ChannelGenerator && state.getLabel().equals(ioC.getChannelName())) {
+				for (Channel ioC: model.getIOChannels()) {
+					if(ioC instanceof Channel && state.getLabel().equals(ioC.getChannelName())) {
 						fileString += "\tnode ioc " + state.getLabel() + ":" + x + "," + y + "," + w + "," + h + "\n";
 					}
 				}
@@ -389,10 +389,10 @@ public class Editor {
 				int w = (int) state.getWidth();
 				int h = (int) state.getHeight();
 
-				for(ChannelGenerator ch: model.getChannelGenerators()) {
-					if(ch instanceof FormulaChannelGenerator && state.getLabel().equals(ch.getChannelName())) {
+				for(Channel ch: model.getChannels()) {
+					if(ch instanceof FormulaChannel && state.getLabel().equals(ch.getChannelName())) {
 						fileString += "\tnode fc " + state.getLabel() + ":" + x + "," + y + "," + w + "," + h+"\n";		
-					} else if(ch instanceof ChannelGenerator && state.getLabel().equals(ch.getChannelName())) {
+					} else if(ch instanceof Channel && state.getLabel().equals(ch.getChannelName())) {
 						fileString +="\tnode c " + state.getLabel() + ":" + x + "," + y + "," + w + "," + h+"\n";
 					}
 				}
@@ -447,40 +447,40 @@ public class Editor {
 		}
 	}
 
-	public void addIdentifierTemplate(IdentifierTemplate res) {
+	public void addResourcePath(ResourcePath res) {
 		// Force to change to the data-flow modeling stage.
 		boolean stageChanged = changeStage(STAGE_DATA_FLOW_MODELING);
 		if (!stageChanged) return;
 		
-		((DataFlowModelingStage) curStage).addIdentifierTemplate(res);
+		((DataFlowModelingStage) curStage).addResourcePath(res);
 		model = ((DataFlowModelingStage) curStage).getModel();
 	}
 
-	public void addChannelGenerator(DataTransferChannelGenerator channelGen) {
+	public void addChannel(DataTransferChannel channel) {
 		// Force to change to the data-flow modeling stage.
 		boolean stageChanged = changeStage(STAGE_DATA_FLOW_MODELING);
 		if (!stageChanged) return;
 		
-		((DataFlowModelingStage) curStage).addChannelGenerator(channelGen);
+		((DataFlowModelingStage) curStage).addChannel(channel);
 		model = ((DataFlowModelingStage) curStage).getModel();
 
 	}
 
-	public void addIOChannelGenerator(DataTransferChannelGenerator ioChannelGen) {
+	public void addIOChannel(DataTransferChannel ioChannel) {
 		// Force to change to the data-flow modeling stage.
 		boolean stageChanged = changeStage(STAGE_DATA_FLOW_MODELING);
 		if (!stageChanged) return;
 		
-		((DataFlowModelingStage) curStage).addIOChannelGenerator(ioChannelGen);
+		((DataFlowModelingStage) curStage).addIOChannel(ioChannel);
 		model = ((DataFlowModelingStage) curStage).getModel();
 	}
 
-	public void addFormulaChannelGenerator(FormulaChannelGenerator formulaChannelGen) {
+	public void addFormulaChannel(FormulaChannel formulaChannel) {
 		// Force to change to the data-flow modeling stage.
 		boolean stageChanged = changeStage(STAGE_DATA_FLOW_MODELING);
 		if (!stageChanged) return;
 		
-		((DataFlowModelingStage) curStage).addFormulaChannelGenerator(formulaChannelGen);
+		((DataFlowModelingStage) curStage).addFormulaChannel(formulaChannel);
 		model = ((DataFlowModelingStage) curStage).getModel();
 	}
 
