@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
+import models.algebra.Constant;
 import models.algebra.Expression;
 import models.algebra.InvalidMessage;
 import models.algebra.Position;
@@ -58,6 +59,9 @@ public class StateTransition {
 			Position varPos = curStateVarEnt.getKey();
 			Expression valueCalc = curStateTerm.getInverseMap(curStateValue, varPos);
 			if (valueCalc != null) {
+				if (valueCalc instanceof Term && !(valueCalc instanceof Constant)) {
+					valueCalc = ((Term) valueCalc).reduce();
+				}
 				ArrayList<Expression> values = bindings.get(var);
 				if (values == null) {
 					values = new ArrayList<Expression>();
@@ -87,6 +91,9 @@ public class StateTransition {
 			Position varPos = nextStateVarEnt.getKey();
 			Expression valueCalc = nextStateTerm.getInverseMap(nextStateValue, varPos);
 			if (valueCalc != null) {
+				if (valueCalc instanceof Term) {
+					valueCalc = ((Term) valueCalc).reduce();
+				}
 				ArrayList<Expression> values = bindings.get(var);
 				if (values == null) {
 					values = new ArrayList<Expression>();
@@ -97,12 +104,18 @@ public class StateTransition {
 		}
 		
 		Expression messageTerm = getMessageExpression();
-		if (!(messageTerm instanceof Term)) throw new InvalidMessage();
+		if (!(messageTerm instanceof Term) && !(messageTerm instanceof Variable)) throw new InvalidMessage();
 		HashMap<Position, Variable> messageVars = messageTerm.getVariables();
 		for (Variable var: messageVars.values()) {
 			if (bindings.get(var) != null) {
 				if (bindings.get(var).size() > 1) throw new ResolvingMultipleDefinitionIsFutureWork();
-				messageTerm = ((Term) messageTerm).substitute(var, bindings.get(var).iterator().next());
+				if (messageTerm instanceof Term) {
+					messageTerm = ((Term) messageTerm).substitute(var, bindings.get(var).iterator().next());
+				} else if (messageTerm instanceof Variable) {
+					if (messageTerm.equals(var)) {
+						return bindings.get(var).iterator().next();
+					}
+				}
 			}
 		}
 		return messageTerm;
@@ -118,6 +131,9 @@ public class StateTransition {
 			Position varPos = curStateVarEnt.getKey();
 			Expression valueCalc = curStateTerm.getInverseMap(curStateValue, varPos);
 			if (valueCalc != null) {
+				if (valueCalc instanceof Term && !(valueCalc instanceof Constant)) {
+					valueCalc = ((Term) valueCalc).reduce();
+				}
 				ArrayList<Expression> values = bindings.get(var);
 				if (values == null) {
 					values = new ArrayList<Expression>();
@@ -128,12 +144,18 @@ public class StateTransition {
 		}
 		
 		Expression messageTerm = getMessageExpression();
-		if (!(messageTerm instanceof Term)) throw new InvalidMessage();
+		if (!(messageTerm instanceof Term) && !(messageTerm instanceof Variable)) throw new InvalidMessage();
 		HashMap<Position, Variable> messageVars = messageTerm.getVariables();
 		for (Variable var: messageVars.values()) {
 			if (bindings.get(var) != null) {
 				if (bindings.get(var).size() > 1) throw new ResolvingMultipleDefinitionIsFutureWork();
-				messageTerm = ((Term) messageTerm).substitute(var, bindings.get(var).iterator().next());
+				if (messageTerm instanceof Term) {
+					messageTerm = ((Term) messageTerm).substitute(var, bindings.get(var).iterator().next());
+				} else if (messageTerm instanceof Variable) {
+					if (messageTerm.equals(var)) {
+						return bindings.get(var).iterator().next();
+					}
+				}
 			}
 		}
 		return messageTerm;
@@ -150,6 +172,9 @@ public class StateTransition {
 			Position varPos = curStateVarEnt.getKey();
 			Expression valueCalc = curStateTerm.getInverseMap(curStateValue, varPos);
 			if (valueCalc != null) {
+				if (valueCalc instanceof Term && !(valueCalc instanceof Constant)) {
+					valueCalc = ((Term) valueCalc).reduce();
+				}
 				if (bindings.get(var) != null) throw new ResolvingMultipleDefinitionIsFutureWork();
 				bindings.put(var, valueCalc);
 			}
@@ -177,6 +202,9 @@ public class StateTransition {
 			for (Variable var: bindings.keySet()) {
 				nextStateTerm = ((Term) nextStateTerm).substitute(var, bindings.get(var));
 			}
+		}
+		if (nextStateTerm instanceof Term && !(nextStateTerm instanceof Constant)) {
+			nextStateTerm = ((Term) nextStateTerm).reduce();
 		}
 		return nextStateTerm;
 	}

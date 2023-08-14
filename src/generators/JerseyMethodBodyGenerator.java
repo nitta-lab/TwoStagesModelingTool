@@ -65,7 +65,7 @@ public class JerseyMethodBodyGenerator {
 				TypeDeclaration srcType = typeMap.get(srcResourceName);
 				TypeDeclaration dstType = typeMap.get(dstResourceName);
 				for (ChannelMember out: d.getChannel().getOutputChannelMembers()) {
-					if (out.getResource() == dst.getResource()) {
+					if (out.getResource().equals(dst.getResource())) {
 						if (pushPull.getOptions().get(0) == PushPullValue.PUSH && srcType != null) {
 							// for push data transfer
 							MethodDeclaration update = getUpdateMethod(dstType, srcType);
@@ -196,7 +196,7 @@ public class JerseyMethodBodyGenerator {
 												referredSet = new HashSet<>();
 												referredResources.put(srcUpdate, referredSet);
 											}
-											if (ref != dst.getResource()) {
+											if (!ref.equals(dst.getResource())) {
 												String refResourceName = ref.getResourceName();
 												Type refResourceType = ref.getResourceStateType();
 												if (!referredSet.contains(ref)) {
@@ -239,7 +239,7 @@ public class JerseyMethodBodyGenerator {
 										referredSet = new HashSet<>();
 										referredResources.put(srcInput, referredSet);
 									}
-									if (ref != dst.getResource()) {
+									if (!ref.equals(dst.getResource())) {
 										String refResourceName = ref.getResourceName();
 										Type refResourceType = ref.getResourceStateType();
 										if (!referredSet.contains(ref)) {

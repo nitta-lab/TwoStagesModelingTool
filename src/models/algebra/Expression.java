@@ -4,7 +4,18 @@ import java.util.HashMap;
 
 public abstract class Expression implements Cloneable {
 	public abstract Expression getSubTerm(Position pos);
+	/**
+	 * Get the unification between this expression and another expression.
+	 * @param another another expression
+	 * @return unified expression
+	 */
 	public abstract Expression unify(Expression another);
+	/**
+	 * Get the inverse map to obtain a sub-term of a given output value back from the output value itself.
+	 * @param outputValue an output value (usually a term)
+	 * @param targetPos a position in outputValue
+	 * @return inverse map
+	 */
 	public abstract Expression getInverseMap(Expression outputValue, Position targetPos);
 	public abstract boolean contains(Expression exp);
 	public abstract Object clone();

@@ -1,0 +1,13 @@
+channel cio1 {
+	out base(x: Double, setBase(x2)) == x2
+}
+
+channel cio2 {
+	out height(y: Double, setHeight(y2)) == y2
+}
+
+channel triangle {
+	in base(x, update: Tuple) == fst(update)
+	in height(y, update) == snd(update)
+	out hypothenuse(z: Double, update) == sqrt(fst(update) * fst(update) + snd(update) * snd(update))
+}

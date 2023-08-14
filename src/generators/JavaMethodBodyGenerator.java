@@ -59,7 +59,7 @@ public class JavaMethodBodyGenerator {
 				TypeDeclaration srcType = typeMap.get(srcResourceName);
 				TypeDeclaration dstType = typeMap.get(dstResourceName);
 				for (ChannelMember out: d.getChannel().getOutputChannelMembers()) {
-					if (out.getResource() == dst.getResource()) {
+					if (out.getResource().equals(dst.getResource())) {
 						if (pushPull.getOptions().get(0) == PushPullValue.PUSH && srcType != null) {
 							// for push data transfer
 							MethodDeclaration update = getUpdateMethod(dstType, srcType);
@@ -79,7 +79,7 @@ public class JavaMethodBodyGenerator {
 								}
 							}
 							if (dst.getIndegree() > 1) {
-								// update a cache of src side resource (when incoming edges are multiple)
+								// update a cash of src side resource (when incoming edges are multiple)
 								String cashStatement = "this." + srcResourceName + " = " + srcResourceName + ";";
 								if (update.getBody() == null || !update.getBody().getStatements().contains(cashStatement)) {
 									update.addFirstStatement(cashStatement);
@@ -119,7 +119,7 @@ public class JavaMethodBodyGenerator {
 										referredSet = new HashSet<>();
 										referredResources.put(srcUpdate, referredSet);
 									}
-									if (ref != dst.getResource()) {
+									if (!ref.equals(dst.getResource())) {
 										String refVarName = ref.getResourceName();
 										if (!referredSet.contains(ref)) {
 											referredSet.add(ref);
@@ -144,7 +144,7 @@ public class JavaMethodBodyGenerator {
 										referredSet = new HashSet<>();
 										referredResources.put(srcInput, referredSet);
 									}
-									if (ref != dst.getResource()) {
+									if (!ref.equals(dst.getResource())) {
 										String refVarName = ref.getResourceName();
 										if (!referredSet.contains(ref)) {
 											referredSet.add(ref);

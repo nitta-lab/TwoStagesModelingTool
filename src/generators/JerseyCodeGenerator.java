@@ -103,7 +103,7 @@ public class JerseyCodeGenerator {
 					param.addAnnotation(new Annotation("FormParam", "\"" + srcName + "\""));
 					vars.add(param);
 					for (ResourcePath refRes: re.getChannel().getReferenceResources()) {
-						if (refRes != rn.getResource()) {
+						if (!refRes.equals(rn.getResource())) {
 							param = new VariableDeclaration(refRes.getResourceStateType(), refRes.getResourceName());
 							param.addAnnotation(new Annotation("FormParam", "\"" + refRes.getResourceName() + "\""));
 							vars.add(param);						
@@ -111,7 +111,7 @@ public class JerseyCodeGenerator {
 					}
 					MethodDeclaration update = new MethodDeclaration("update" + srcResName, false, typeVoid, vars);
 					for (ChannelMember cm: re.getChannel().getOutputChannelMembers()) {
-						if (cm.getResource() == rn.getResource()) {
+						if (cm.getResource().equals(rn.getResource())) {
 							if (cm.getStateTransition().isRightUnary()) {
 								update.addAnnotation(new Annotation("PUT"));
 							} else {

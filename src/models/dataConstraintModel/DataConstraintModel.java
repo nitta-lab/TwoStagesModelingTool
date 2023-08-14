@@ -3,8 +3,12 @@ package models.dataConstraintModel;
 import java.util.Collection;
 import java.util.HashMap;
 
+import models.algebra.Expression;
+import models.algebra.LambdaAbstraction;
 import models.algebra.Symbol;
+import models.algebra.Term;
 import models.algebra.Type;
+import models.algebra.Variable;
 import parser.Parser;
 
 public class DataConstraintModel {
@@ -143,6 +147,19 @@ public class DataConstraintModel {
 			return temp;
 		}
 	});
+	public static final Symbol pi = new Symbol("PI", 0, Symbol.Type.PREFIX, "Math.PI", Symbol.Type.PREFIX);
+	public static final Symbol E = new Symbol("E", 0, Symbol.Type.PREFIX, "Math.E", Symbol.Type.PREFIX);
+	public static final Symbol sqrt = new Symbol("sqrt", 1, Symbol.Type.PREFIX, "Math.sqrt", Symbol.Type.PREFIX);
+	public static final Symbol sin = new Symbol("sin", 1, Symbol.Type.PREFIX, "Math.sin", Symbol.Type.PREFIX);
+	public static final Symbol cos = new Symbol("cos", 1, Symbol.Type.PREFIX, "Math.cos", Symbol.Type.PREFIX);
+	public static final Symbol tan = new Symbol("tan", 1, Symbol.Type.PREFIX, "Math.tan", Symbol.Type.PREFIX);
+	public static final Symbol asin = new Symbol("asin", 1, Symbol.Type.PREFIX, "Math.asin", Symbol.Type.PREFIX);
+	public static final Symbol acos = new Symbol("acos", 1, Symbol.Type.PREFIX, "Math.acos", Symbol.Type.PREFIX);
+	public static final Symbol atan = new Symbol("atan", 1, Symbol.Type.PREFIX, "Math.atan", Symbol.Type.PREFIX);
+	public static final Symbol pow = new Symbol("pow", 2, Symbol.Type.PREFIX, "Math.pow", Symbol.Type.PREFIX);
+	public static final Symbol exp = new Symbol("exp", 1, Symbol.Type.PREFIX, "Math.exp", Symbol.Type.PREFIX);
+	public static final Symbol log = new Symbol("log", 1, Symbol.Type.PREFIX, "Math.log", Symbol.Type.PREFIX);
+	public static final Symbol abs = new Symbol("abs", 1, Symbol.Type.PREFIX, "Math.abs", Symbol.Type.PREFIX);
 		
 	static {
 		add.setInverses(new Symbol[] {sub, sub});
@@ -176,9 +193,29 @@ public class DataConstraintModel {
 		tuple.setSignature(new Type[] {typeTuple, null, null});
 		tuple.setInverses(new Symbol[] {fst, snd});
 		fst.setSignature(new Type[] {null, typeTuple});
+		fst.setInverses(new Symbol[] {new LambdaAbstraction(new Variable("x"), new Term(tuple, new Expression[] {new Variable("x"), new Variable("y")}))});
 		snd.setSignature(new Type[] {null, typeTuple});
+		snd.setInverses(new Symbol[] {new LambdaAbstraction(new Variable("y"), new Term(tuple, new Expression[] {new Variable("x"), new Variable("y")}))});
 		insert.setSignature(new Type[] {typeMap, typeMap, null, null});
 		lookup.setSignature(new Type[] {null, typeMap, null});
+		pi.setSignature(new Type[] {typeDouble});
+		E.setSignature(new Type[] {typeDouble});
+		sqrt.setSignature(new Type[] {typeDouble, typeDouble});
+		sin.setSignature(new Type[] {typeDouble, typeDouble});
+		cos.setSignature(new Type[] {typeDouble, typeDouble});
+		tan.setSignature(new Type[] {typeDouble, typeDouble});
+		asin.setSignature(new Type[] {typeDouble, typeDouble});
+		asin.setInverses(new Symbol[] {sin});
+		acos.setSignature(new Type[] {typeDouble, typeDouble});
+		acos.setInverses(new Symbol[] {cos});
+		atan.setSignature(new Type[] {typeDouble, typeDouble});
+		atan.setInverses(new Symbol[] {tan});
+		pow.setSignature(new Type[] {typeDouble, typeDouble, typeDouble});
+		exp.setSignature(new Type[] {typeDouble, typeDouble});
+		exp.setInverses(new Symbol[] {log});
+		log.setSignature(new Type[] {typeDouble, typeDouble});
+		log.setInverses(new Symbol[] {exp});
+		abs.setSignature(new Type[] {typeDouble, typeDouble});
 	}
 	
 	public DataConstraintModel() {
@@ -232,6 +269,19 @@ public class DataConstraintModel {
 		addSymbol(snd);
 		addSymbol(insert);
 		addSymbol(lookup);
+		addSymbol(pi);
+		addSymbol(E);
+		addSymbol(sqrt);
+		addSymbol(sin);
+		addSymbol(cos);
+		addSymbol(tan);
+		addSymbol(asin);
+		addSymbol(acos);
+		addSymbol(atan);
+		addSymbol(pow);
+		addSymbol(exp);
+		addSymbol(log);
+		addSymbol(abs);
 	}
 	
 	public Collection<ResourcePath> getResourcePaths() {

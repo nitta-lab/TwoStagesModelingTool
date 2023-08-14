@@ -76,7 +76,8 @@ public class JavaCodeGenerator {
 		// For each resource.
 		for (ResourceNode rn: resources) {
 			boolean f = false;
-			String resourceName = toTypeName(rn.getResource().getResourceName());
+			String resourceName = rn.getResource().getResourceName().substring(0, 1).toUpperCase()
+					+ rn.getResource().getResourceName().substring(1);
 			TypeDeclaration type = new TypeDeclaration(resourceName);
 			
 			// Declare the field to refer to each resource in the main type.
@@ -85,7 +86,7 @@ public class JavaCodeGenerator {
 			for (Edge e : rn.getOutEdges()) {
 				DataFlowEdge re = (DataFlowEdge) e;
 				ResourcePath dstRes = ((ResourceNode) re.getDestination()).getResource();
-				String resName = toTypeName(dstRes.getResourceName());
+				String resName = dstRes.getResourceName().substring(0, 1).toUpperCase() + dstRes.getResourceName().substring(1);
 				if (((PushPullAttribute) re.getAttribute()).getOptions().get(0) == PushPullValue.PUSH) {
 					depends.add(dstRes);
 					fieldInitializer += resName.toLowerCase() + ",";
@@ -95,16 +96,17 @@ public class JavaCodeGenerator {
 			for (Edge e : rn.getInEdges()) {
 				DataFlowEdge re = (DataFlowEdge) e;
 				ResourcePath srcRes = ((ResourceNode) re.getSource()).getResource();
-				String resName = toTypeName(srcRes.getResourceName());
+				String resName = srcRes.getResourceName().substring(0, 1).toUpperCase() + srcRes.getResourceName().substring(1);
 				if (((PushPullAttribute) re.getAttribute()).getOptions().get(0) != PushPullValue.PUSH) {
 					depends.add(srcRes);
 					fieldInitializer += resName.toLowerCase() + ",";
 					f = true;
 				} else {
 					if (rn.getIndegree() > 1) {
-						// Declare a field to cache the state of the source resource in the type of the destination resource.
-						ResourcePath cacheResId = ((ResourceNode) re.getSource()).getResource();
-						type.addField(new FieldDeclaration(cacheResId.getResourceStateType(), cacheResId.getResourceName(), getInitializer(cacheResId)));
+						// Declare a field to cash the state of the source resource in the type of the destination resource.
+						ResourcePath cashResId = ((ResourceNode) re.getSource()).getResource();
+						type.addField(new FieldDeclaration(
+								cashResId.getResourceStateType(), ((ResourceNode) re.getSource()).getResource().getResourceName(), getInitializer(cashResId)));
 					}
 				}
 			}
@@ -126,14 +128,12 @@ public class JavaCodeGenerator {
 			fieldInitializer += ")";
 			FieldDeclaration field = new FieldDeclaration(new Type(resourceName, resourceName), rn.getResource().getResourceName());
 			mainType.addField(field);
-			
-			// Add a statement to instantiate each object to the main constructor.			
-			Block mainConstructorBody = mainConstructor.getBody();
-			if (mainConstructorBody == null) {
-				mainConstructorBody = new Block();
-				mainConstructor.setBody(mainConstructorBody);
+			Block manConstructorBody = mainConstructor.getBody();
+			if (manConstructorBody == null) {
+				manConstructorBody = new Block();
+				mainConstructor.setBody(manConstructorBody);
 			}
-			mainConstructorBody.addStatement(rn.getResource().getResourceName() + " = " + fieldInitializer + ";");
+			manConstructorBody.addStatement(rn.getResource().getResourceName() + " = " + fieldInitializer + ";");
 			
 			// Declare a constructor, fields and update methods in the type of each resource.
 			MethodDeclaration constructor = new MethodDeclaration(resourceName, true);
@@ -142,7 +142,7 @@ public class JavaCodeGenerator {
 			for (Edge e : rn.getOutEdges()) {
 				DataFlowEdge re = (DataFlowEdge) e;
 				ResourcePath dstRes = ((ResourceNode) re.getDestination()).getResource();
-				String dstResName = toTypeName(dstRes.getResourceName());
+				String dstResName = dstRes.getResourceName().substring(0, 1).toUpperCase() + dstRes.getResourceName().substring(1);
 				if (((PushPullAttribute) re.getAttribute()).getOptions().get(0) == PushPullValue.PUSH) {
 					// Declare a field to refer to the destination resource of push transfer.
 					depends.add(dstRes);
@@ -154,7 +154,7 @@ public class JavaCodeGenerator {
 			for (Edge e : rn.getInEdges()) {
 				DataFlowEdge re = (DataFlowEdge) e;
 				ResourcePath srcRes = ((ResourceNode) re.getSource()).getResource();
-				String srcResName = toTypeName(srcRes.getResourceName());
+				String srcResName = srcRes.getResourceName().substring(0, 1).toUpperCase() + srcRes.getResourceName().substring(1);
 				if (((PushPullAttribute) re.getAttribute()).getOptions().get(0) != PushPullValue.PUSH) {
 					// Declare a field to refer to the source resource of pull transfer.
 					depends.add(srcRes);
@@ -167,7 +167,7 @@ public class JavaCodeGenerator {
 					vars.add(new VariableDeclaration(srcRes.getResourceStateType(), srcRes.getResourceName()));
 					DataTransferChannel c = (DataTransferChannel) re.getChannel();
 					for (ResourcePath ref: c.getReferenceResources()) {
-						if (ref != rn.getResource()) {
+						if (!ref.equals(rn.getResource())) {
 							vars.add(new VariableDeclaration(ref.getResourceStateType(), ref.getResourceName()));
 						}
 					}
@@ -183,7 +183,7 @@ public class JavaCodeGenerator {
 						if (!refs.contains(id) && !depends.contains(id)) {
 							refs.add(id);
 							String refResName = id.getResourceName();
-							refResName = toTypeName(refResName);
+							refResName = refResName.substring(0, 1).toUpperCase() + refResName.substring(1);
 							type.addField(new FieldDeclaration(new Type(refResName, refResName), id.getResourceName()));
 							constructor.addParameter(new VariableDeclaration(new Type(refResName, refResName), id.getResourceName()));						
 							block.addStatement("this." + id.getResourceName() + " = " + id.getResourceName() + ";");
@@ -200,16 +200,16 @@ public class JavaCodeGenerator {
 				for (ChannelMember cm : ((DataTransferChannel) cg).getOutputChannelMembers()) {
 					if (cm.getResource().equals(rn.getResource())) {
 						Expression message = cm.getStateTransition().getMessageExpression();
-						if (message instanceof Term) {
+						if (message.getClass() == Term.class) {
 							ArrayList<VariableDeclaration> params = new ArrayList<>();
 							for (Variable var: message.getVariables().values()) {
 								params.add(new VariableDeclaration(var.getType(), var.getName()));
 							}
 							MethodDeclaration input = new MethodDeclaration(
-									((Term) message).getSymbol().getImplName(),
+									((Term) cm.getStateTransition().getMessageExpression()).getSymbol().getImplName(),
 									false, typeVoid, params);
 							type.addMethod(input);
-							String str = ((Term) message).getSymbol().getImplName();
+							String str = ((Term) cm.getStateTransition().getMessageExpression()).getSymbol().getImplName();
 							input = getMethod(mainType, str);
 							if (input == null) {
 								input = new MethodDeclaration(str, false, typeVoid, params);
@@ -226,13 +226,15 @@ public class JavaCodeGenerator {
 									}
 								}
 							}
-						} else if (message instanceof Variable) {
-							MethodDeclaration input = new MethodDeclaration(((Variable) message).getName(), typeVoid);
+						} else if (message.getClass() == Variable.class) {
+							MethodDeclaration input = new MethodDeclaration(
+									((Variable) cm.getStateTransition().getMessageExpression()).getName(),
+									false, typeVoid, null);
 							type.addMethod(input);
-							String str = ((Variable) message).getName();
+							String str = ((Variable) cm.getStateTransition().getMessageExpression()).getName();
 							input = getMethod(mainType, str);
 							if (input == null) {
-								input = new MethodDeclaration(str, typeVoid);
+								input = new MethodDeclaration(str, false, typeVoid, null);
 								mainType.addMethod(input);
 							}
 						}
@@ -276,7 +278,7 @@ public class JavaCodeGenerator {
 			
 				for(FieldDeclaration field : type.getFields()) {
 					MethodDeclaration getter = new MethodDeclaration(
-						"get" + toTypeName(field.getName()),
+						"get" + field.getName().substring(0,1).toUpperCase() + field.getName().substring(1),
 						new Type("Double","T"));
 					getter.setBody(new Block());
 					getter.getBody().addStatement("return " + field.getName() + ";");
@@ -295,7 +297,8 @@ public class JavaCodeGenerator {
 		for (Node n : graph.getNodes()) {
 			ResourceNode rn = (ResourceNode) n;
 			MethodDeclaration getter = new MethodDeclaration(
-					"get" + toTypeName(rn.getResource().getResourceName()),
+					"get" + rn.getResource().getResourceName().substring(0, 1).toUpperCase()
+							+ rn.getResource().getResourceName().substring(1),
 					rn.getResource().getResourceStateType());
 			getter.setBody(new Block());
 			getter.getBody().addStatement(
@@ -303,7 +306,7 @@ public class JavaCodeGenerator {
 			mainType.addMethod(getter);
 		}
 		
-		// ?????
+		
 		HashSet<String> tmps = new HashSet<>();
 		HashSet<String> cont = new HashSet<>();
 		for (MethodDeclaration method : mainType.getMethods()) {
@@ -314,26 +317,23 @@ public class JavaCodeGenerator {
 		}
 		for (MethodDeclaration method : mainType.getMethods()) {
 			if (cont.contains(method.getName())) {
-				method.setName(method.getName() + toTypeName(method.getParameters().get(0).getName()));
+				method.setName(method.getName() + method.getParameters().get(0).getName().substring(0, 1).toUpperCase()
+						+ method.getParameters().get(0).getName().substring(1));
 			}
 		}
 		return codes;
 	}
 
-	private static String toTypeName(String resName) {
-		return resName.substring(0, 1).toUpperCase() + resName.substring(1);
-	}
-
-	static private String getInitializer(ResourcePath resId) {
+	private static String getInitializer(ResourcePath resId) {
 		Type stateType = resId.getResourceStateType();
 		String initializer = null;
 		if (resId.getInitialValue() != null) {
 			initializer = resId.getInitialValue().toImplementation(new String[] {""});
 		} else {
 			if (DataConstraintModel.typeList.isAncestorOf(stateType)) {
-				initializer = "new " + stateType.getImplementationTypeName() + "()";
+				initializer = "new " + resId.getResourceStateType().getImplementationTypeName() + "()";
 			} else if (DataConstraintModel.typeMap.isAncestorOf(stateType)) {
-				initializer = "new " + stateType.getImplementationTypeName() + "()";
+				initializer = "new " + resId.getResourceStateType().getImplementationTypeName() + "()";
 			}
 		}
 		return initializer;
@@ -414,7 +414,7 @@ public class JavaCodeGenerator {
 			for (Edge e : rn.getOutEdges()) {
 				DataFlowEdge re = (DataFlowEdge) e;
 				for (ChannelMember m: re.getChannel().getReferenceChannelMembers()) {
-					if (m.getResource() == curNode.getResource()) {
+					if (m.getResource().equals(curNode.getResource())) {
 						topologicalSort(graph, rn, visited, orderedList);
 					}
 				}

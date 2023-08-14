@@ -328,7 +328,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 				// Add a return statement.
 				try {
 					for (ChannelMember out: ch.getOutputChannelMembers()) {
-						if (out.getResource() == resourceNode.getResource()) {
+						if (out.getResource().equals(resourceNode.getResource())) {
 							String[] sideEffects = new String[] {""};
 							// The following process is common to the cases of 1) and 2).
 							// 1) All incoming edges are in PULL-style.
@@ -596,7 +596,7 @@ public class CodeGeneratorFromControlFlowGraph extends CodeGenerator {
 						for (ChannelMember in: re.getChannel().getInputChannelMembers()) {
 							if (passedIds.contains(in.getResource())) {
 								for (ChannelMember out: re.getChannel().getOutputChannelMembers()) {
-									if (out.getResource() == resourceNode.getResource()) {
+									if (out.getResource().equals(resourceNode.getResource())) {
 										Expression updateExp = re.getChannel().deriveUpdateExpressionOf(out, getPushAccessor());
 										String[] sideEffects = new String[] {""};
 										String curState = updateExp.toImplementation(sideEffects);

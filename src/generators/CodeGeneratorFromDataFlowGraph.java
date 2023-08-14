@@ -148,7 +148,7 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 			// generate a return statement.
 			try {
 				for (ChannelMember out: ch.getOutputChannelMembers()) {
-					if (out.getResource() == resourceNode.getResource()) {
+					if (out.getResource().equals(resourceNode.getResource())) {
 						String[] sideEffects = new String[] {""};
 						if (!isContainedPush) {
 							// All incoming edges are in PULL-style.
@@ -189,7 +189,7 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 				// For the refs.
 				DataTransferChannel ch = (DataTransferChannel) re.getChannel();
 				for (ResourcePath ref: ch.getReferenceResources()) {
-					if (ref != resourceNode.getResource()) {
+					if (!ref.equals(resourceNode.getResource())) {
 						vars.add(langSpec.newVariableDeclaration(ref.getResourceStateType(), ref.getResourceName()));
 					}
 				}
@@ -201,7 +201,7 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 				if (((StoreAttribute) resourceNode.getAttribute()).isStored()) {
 					try {
 						for (ChannelMember out: re.getChannel().getOutputChannelMembers()) {
-							if (out.getResource() == resourceNode.getResource()) {
+							if (out.getResource().equals(resourceNode.getResource())) {
 								Expression updateExp = re.getChannel().deriveUpdateExpressionOf(out, getPushAccessor());
 								String[] sideEffects = new String[] {""};
 								String curState = updateExp.toImplementation(sideEffects);
@@ -258,7 +258,7 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 								referredSet = new HashSet<>();
 								referredResources.put(update, referredSet);
 							}
-							if (ref != resourceNode.getResource()) {
+							if (!ref.equals(resourceNode.getResource())) {
 								String refVarName = ref.getResourceName();
 								if (!referredSet.contains(ref)) {
 									referredSet.add(ref);
@@ -384,7 +384,7 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 										referredSet = new HashSet<>();
 										referredResources.put(input, referredSet);
 									}
-									if (ref != resourceNode.getResource()) {
+									if (!ref.equals(resourceNode.getResource())) {
 										String refVarName = ref.getResourceName();
 										if (!referredSet.contains(ref)) {
 											referredSet.add(ref);

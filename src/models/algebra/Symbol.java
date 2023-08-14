@@ -1,15 +1,15 @@
 package models.algebra;
 
 public class Symbol {
-	private String name;
-	private String implName;
-	private int arity = 0;			// -1: variable number
-	private Type operatorType = Type.PREFIX;
-	private Type implOperatorType = Type.PREFIX;
-	private Symbol[] inverses = null;
-	private models.algebra.Type[] signature = null;
-	private int[] implParamOrder = null;
-	private IImplGenerator generator = null;
+	protected String name;
+	protected String implName;
+	protected int arity = 0;			// -1: variable number
+	protected Type operatorType = Type.PREFIX;
+	protected Type implOperatorType = Type.PREFIX;
+	protected Symbol[] inverses = null;
+	protected models.algebra.Type[] signature = null;
+	protected int[] implParamOrder = null;
+	protected IImplGenerator generator = null;
 	
 	public Symbol(String name) {
 		this.name = name;
@@ -88,6 +88,10 @@ public class Symbol {
 	
 	public boolean isMethod() {
 		return (operatorType == Type.METHOD || operatorType == Type.METHOD_WITH_SIDE_EFFECT);
+	}
+	
+	public boolean isLambda() {
+		return (operatorType == Type.LAMBDA);
 	}
 
 	public Symbol[] getInverses() {

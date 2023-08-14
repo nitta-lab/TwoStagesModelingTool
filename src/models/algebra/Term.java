@@ -1,12 +1,14 @@
 package models.algebra;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map.Entry;
 
 public class Term extends Expression {
 	protected Symbol symbol = null;
-	protected ArrayList<Expression> children = new ArrayList<>();
+	protected List<Expression> children = new ArrayList<>();
 	protected Type type = null;
 	
 	public Term(Symbol symbol) {
@@ -14,10 +16,16 @@ public class Term extends Expression {
 		this.symbol = symbol;
 	}
 
-	public Term(Symbol symbol, ArrayList<Expression> children) {
+	public Term(Symbol symbol, List<Expression> children) {
 		super();
 		this.symbol = symbol;
 		this.children = children;
+	}
+
+	public Term(Symbol symbol, Expression[] children) {
+		super();
+		this.symbol = symbol;
+		this.children = new ArrayList<>(Arrays.asList(children));
 	}
 
 	public Symbol getSymbol() {
@@ -55,7 +63,7 @@ public class Term extends Expression {
 		return children.get(n);
 	}
 	
-	public ArrayList<Expression> getChildren() {
+	public List<Expression> getChildren() {
 		return children;
 	}
 	
@@ -121,6 +129,55 @@ public class Term extends Expression {
 		} else {
 			return null;
 		}		
+	}
+	
+	public Expression reduce() {
+		if (symbol.isLambda()) {
+			// Lambda beta-reduction
+			LambdaAbstraction newSymbol = ((LambdaAbstraction) symbol);
+			Term newTerm = newSymbol.getTerm();
+			List<Variable> newVariables = newSymbol.getVariables();
+			List<Expression> newChildren = children;
+			while (newVariables.size() > 0 && newChildren.size() > 0) {
+				newTerm = newTerm.substitute(newVariables.get(0), newChildren.get(0));
+				newVariables = newVariables.subList(1, newVariables.size());
+				newChildren = newChildren.subList(1, newChildren.size());
+				newSymbol = new LambdaAbstraction(newVariables, newTerm);
+			}
+			if (newSymbol.arity == 0 && newChildren.size() == 0) {
+				return newTerm;
+			} else {
+				return new Term(newSymbol, newChildren);
+			}
+		} else {
+			// Calculate inverse map
+			List<Expression> newChildren = new ArrayList<>();
+			boolean bReduced = false;
+			for (Expression child: children) {
+				if (child instanceof Term && !(child instanceof Constant)) {
+					child = ((Term) (child)).reduce();
+					bReduced = true;
+				}
+				newChildren.add(child);
+			}
+			if (symbol.arity == 1 && newChildren.size() == 1) {
+				Expression child = newChildren.get(0);
+				if (child instanceof Term && !(child instanceof Constant)) {
+					Symbol childSymbol = ((Term) child).getSymbol();
+					if (childSymbol.getInverses() != null) {
+						for (int i = 0; i < childSymbol.getInverses().length; i++) {
+							if (symbol.equals(childSymbol.getInverses()[i])) {
+								return ((Term) child).getChild(i);
+							}
+						}
+					}
+				}
+			}
+			if (!bReduced) return this;
+			Term newTerm = new Term(symbol, newChildren);
+			newTerm.setType(type);
+			return newTerm;
+		}
 	}
 	
 	@Override
