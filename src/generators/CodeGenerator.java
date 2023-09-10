@@ -2,6 +2,7 @@ package generators;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -74,7 +75,7 @@ public abstract class CodeGenerator {
 		ArrayList<CompilationUnit> codes = new ArrayList<>();
 		
 		// Sort the all components.
-		ArrayList<Node> components = determineComponentOrder(flowGraph);
+		ArrayList<Set<Node>> components = determineComponentOrder(flowGraph);
 		
 		// Add the main component.
 		if (mainTypeName == null) {
@@ -91,49 +92,75 @@ public abstract class CodeGenerator {
 		return codes;
 	}
 	
-	public abstract void generateCodeFromFlowGraph(DataTransferModel model, IFlowGraph flowGraph, ArrayList<Node> components,
+	public abstract void generateCodeFromFlowGraph(DataTransferModel model, IFlowGraph flowGraph, ArrayList<Set<Node>> components,
 			TypeDeclaration mainComponent, MethodDeclaration mainConstructor, ArrayList<CompilationUnit> codes, ILanguageSpecific langSpec);
 	
-	private static ArrayList<Node> determineComponentOrder(IFlowGraph graph) {
-		ArrayList<Node> objects = new ArrayList<>();
-		Set<Node> visited = new HashSet<>();
-		Set<Node> allNodes = graph.getAllNodes();
-		for (Node n: allNodes) {
-			if (!(n instanceof EntryPointObjectNode)) {
-				topologicalSort(allNodes, n, visited, objects);
+	private static ArrayList<Set<Node>> determineComponentOrder(IFlowGraph graph) {
+		ArrayList<Set<Node>> objects = new ArrayList<>();
+		Set<Set<Node>> visited = new HashSet<>();
+		Map<Node, Set<Node>> allNodeSets = graph.getAllNodes();
+		for (Set<Node> nodeSet: allNodeSets.values()) {
+			if (!(nodeSet.iterator().next() instanceof EntryPointObjectNode)) {
+				topologicalSort(allNodeSets, nodeSet, visited, objects);
 			}
 		}
 		return objects;
 	}
 	
-	private static void topologicalSort(Set<Node> allNodes, Node curNode, Set<Node> visited, List<Node> orderedList) {
-		if (visited.contains(curNode)) return;
-		visited.add(curNode);
+	private static void topologicalSort(Map<Node, Set<Node>> allNodeSets, Set<Node> curNodeSet, Set<Set<Node>> visited, List<Set<Node>> orderedList) {
+		if (visited.contains(curNodeSet)) return;
+		visited.add(curNodeSet);
 		// a caller is before the callee
-		for (Edge e: curNode.getInEdges()) {
-			if (!(e.getSource() instanceof EntryPointObjectNode)) {
-				if (!(e instanceof DataFlowEdge) || ((PushPullAttribute)((DataFlowEdge) e).getAttribute()).getOptions().get(0) == PushPullValue.PUSH) {
-					topologicalSort(allNodes, e.getSource(), visited, orderedList);
+		for (Node curNode: curNodeSet) {
+			for (Edge e: curNode.getInEdges()) {
+				if (!(e.getSource() instanceof EntryPointObjectNode)) {
+					if (!(e instanceof DataFlowEdge) || ((PushPullAttribute)((DataFlowEdge) e).getAttribute()).getOptions().get(0) == PushPullValue.PUSH) {
+						// for a call edge or PUSH data-flow edge
+						topologicalSort(allNodeSets, allNodeSets.get(e.getSource()), visited, orderedList);
+					}
 				}
 			}
 		}
-		if (curNode instanceof ResourceNode) {
-			for (Edge e: curNode.getOutEdges()) {
-				DataFlowEdge de = (DataFlowEdge) e;
-				if (((PushPullAttribute) de.getAttribute()).getOptions().get(0) != PushPullValue.PUSH) {
-					topologicalSort(allNodes, e.getDestination(), visited, orderedList);
+//		if (curNode instanceof StatefulObjectNode) {
+//			ResourceNode resNode = ((StatefulObjectNode) curNode).getResource();
+//			for (Node n: allNodes) {
+//				if (n != curNode && n instanceof StatefulObjectNode && !visited.contains(n)) {
+//					if (resNode.equals(((StatefulObjectNode) n).getResource())) {
+//						// n and curNode are identical (one in PUSH call graph and another in PULL call graph).
+//						visited.add(n);
+//						for (Edge e: n.getInEdges()) {
+//							if (!(e.getSource() instanceof EntryPointObjectNode)) {
+//								if (!(e instanceof DataFlowEdge)) {
+//									// for a call edge
+//									topologicalSort(allNodes, e.getSource(), visited, orderedList);
+//								}
+//							}
+//						}
+//					}
+//				}
+//			}
+//		}
+		if (curNodeSet.iterator().next() instanceof ResourceNode) {
+			for (Node curNode: curNodeSet) {
+				for (Edge e: curNode.getOutEdges()) {
+					DataFlowEdge de = (DataFlowEdge) e;
+					if (((PushPullAttribute) de.getAttribute()).getOptions().get(0) != PushPullValue.PUSH) {
+						// for a PULL data-flow edge
+						topologicalSort(allNodeSets, allNodeSets.get(e.getDestination()), visited, orderedList);
+					}
 				}
 			}
 		}
 		// For reference resources.
 		ResourceNode cn = null;
+		Node curNode = curNodeSet.iterator().next();
 		if (curNode instanceof ResourceNode) {
 			cn = (ResourceNode) curNode;
 		} else if (curNode instanceof StatefulObjectNode) {
 			cn = ((StatefulObjectNode) curNode).getResource();
 		}
 		if (cn != null) {
-			for (Node n: allNodes) {
+			for (Node n: allNodeSets.keySet()) {
 				ResourceNode rn = null;
 				if (n instanceof ResourceNode) {
 					rn = (ResourceNode) n;
@@ -145,14 +172,14 @@ public abstract class CodeGenerator {
 						DataTransferChannel ch = ((DataFlowEdge) e).getChannel();
 						for (ChannelMember m: ch.getReferenceChannelMembers()) {
 							if (m.getResource() == cn.getResource()) {
-								topologicalSort(allNodes, n, visited, orderedList);
+								topologicalSort(allNodeSets, allNodeSets.get(n), visited, orderedList);
 							}
 						}
 					}
 				}
 			}
 		}
-		orderedList.add(0, curNode);
+		orderedList.add(0, curNodeSet);
 	}
 
 	protected void updateMainComponent(DataTransferModel model, TypeDeclaration mainType, MethodDeclaration mainConstructor, Node componentNode, 
@@ -245,10 +272,10 @@ public abstract class CodeGenerator {
 		}
 	}
 
-	protected void declareAccessorInMainComponent(TypeDeclaration mainComponent, ResourcePath accessResId, ILanguageSpecific langSpec) {
-		MethodDeclaration getter = new MethodDeclaration("get" + langSpec.toComponentName(accessResId.getResourceName()), accessResId.getResourceStateType());
+	protected void declareAccessorInMainComponent(TypeDeclaration mainComponent, ResourcePath accessRes, ILanguageSpecific langSpec) {
+		MethodDeclaration getter = langSpec.newMethodDeclaration("get" + langSpec.toComponentName(accessRes.getResourceName()), accessRes.getResourceStateType());
 		Block block = new Block();
-		block.addStatement(langSpec.getReturnStatement(langSpec.getMethodInvocation(accessResId.getResourceName(), getterOfResourceState)) + langSpec.getStatementDelimiter());
+		block.addStatement(langSpec.getReturnStatement(langSpec.getMethodInvocation(accessRes.getResourceName(), getterOfResourceState)) + langSpec.getStatementDelimiter());
 		getter.setBody(block);
 		mainComponent.addMethod(getter);
 	}

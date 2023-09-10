@@ -1,6 +1,9 @@
 package models.controlFlowModel;
 
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import models.Edge;
@@ -108,18 +111,31 @@ public class ControlFlowGraph implements IFlowGraph {
 	}
 	
 	@Override
-	public Set<Node> getAllNodes() {
-		Set<Node> allNodes = new HashSet<>();
-		allNodes.addAll(pushCallGraph.getNodes());
+	public Map<Node, Set<Node>> getAllNodes() {
+		Map<Node, Set<Node>> allNodeSets = new HashMap<>();
+		for (Node n: pushCallGraph.getNodes()) {
+			Set<Node> nodeSet = new HashSet<>();
+			nodeSet.add(n);
+			allNodeSets.put(n, nodeSet);
+		}
 		for (Node n: pullCallGraph.getNodes()) {
 			if (n instanceof StatefulObjectNode) {
-				if (pushCallGraph.getStatefulObjectNode(((StatefulObjectNode) n).getResource()) == null) {
-					allNodes.add(n);
+				ResourceNode resNode = ((StatefulObjectNode) n).getResource();
+				Set<Node> nodeSet = null;
+				if (pushCallGraph.getStatefulObjectNode(resNode) != null) {
+					// Merge a stateful object node in the push call graph and that in the pull call graph.
+					nodeSet = allNodeSets.get(pushCallGraph.getStatefulObjectNode(resNode));
+				} else {
+					nodeSet = new HashSet<>();
 				}
+				nodeSet.add(n);
+				allNodeSets.put(n, nodeSet);
 			} else {
-				allNodes.add(n);
+				Set<Node> nodeSet = new HashSet<>();
+				nodeSet.add(n);
+				allNodeSets.put(n, nodeSet);
 			}
 		}
-		return allNodes;
+		return allNodeSets;
 	}
 }

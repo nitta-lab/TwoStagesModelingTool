@@ -49,6 +49,7 @@ import parser.exceptions.ExpectedRHSExpression;
 import parser.exceptions.ExpectedResource;
 import parser.exceptions.ExpectedRightBracket;
 import parser.exceptions.ExpectedStateTransition;
+import parser.exceptions.WrongJsonExpression;
 import parser.exceptions.WrongLHSExpression;
 import parser.exceptions.WrongRHSExpression;
 import parser.ParserDTRAM;
@@ -253,7 +254,7 @@ public class Editor {
 					return model;
 				} catch (ExpectedChannel | ExpectedChannelName | ExpectedLeftCurlyBracket | ExpectedInOrOutOrRefKeyword
 						| ExpectedStateTransition | ExpectedEquals | ExpectedRHSExpression | WrongLHSExpression
-						| WrongRHSExpression | ExpectedRightBracket | ExpectedAssignment | ExpectedModel | ExpectedGeometry | ExpectedNode | ExpectedResource | ExpectedFormulaChannel | ExpectedIoChannel e) {
+						| WrongRHSExpression | ExpectedRightBracket | ExpectedAssignment | ExpectedModel | ExpectedGeometry | ExpectedNode | ExpectedResource | ExpectedFormulaChannel | ExpectedIoChannel | WrongJsonExpression e) {
 					e.printStackTrace();
 				}
 			}
@@ -289,7 +290,7 @@ public class Editor {
 				return model;
 			} catch (ExpectedChannel | ExpectedChannelName | ExpectedLeftCurlyBracket | ExpectedInOrOutOrRefKeyword
 					| ExpectedStateTransition | ExpectedEquals | ExpectedRHSExpression | WrongLHSExpression
-					| WrongRHSExpression | ExpectedRightBracket | ExpectedAssignment e) {
+					| WrongRHSExpression | ExpectedRightBracket | ExpectedAssignment | WrongJsonExpression e) {
 				e.printStackTrace();
 			}
 		} catch (FileNotFoundException e) {

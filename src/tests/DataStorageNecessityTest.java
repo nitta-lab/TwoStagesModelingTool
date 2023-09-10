@@ -18,6 +18,7 @@ import parser.exceptions.ExpectedLeftCurlyBracket;
 import parser.exceptions.ExpectedRHSExpression;
 import parser.exceptions.ExpectedRightBracket;
 import parser.exceptions.ExpectedStateTransition;
+import parser.exceptions.WrongJsonExpression;
 import parser.exceptions.WrongLHSExpression;
 import parser.exceptions.WrongRHSExpression;
 
@@ -39,7 +40,7 @@ public class DataStorageNecessityTest {
 				}
 			} catch (ExpectedChannel | ExpectedChannelName | ExpectedLeftCurlyBracket | ExpectedInOrOutOrRefKeyword
 					| ExpectedStateTransition | ExpectedEquals | ExpectedRHSExpression | WrongLHSExpression
-					| WrongRHSExpression | ExpectedRightBracket | ExpectedAssignment e) {
+					| WrongRHSExpression | ExpectedRightBracket | ExpectedAssignment | WrongJsonExpression e) {
 				e.printStackTrace();
 			}
 		} catch (FileNotFoundException e) {

@@ -327,7 +327,12 @@ public class Term extends Expression {
 		}
 		if (getArity() >= 1 && symbol.isImplMethod()) {
 			if (implParamOrder == null) {
-				String exp = children.get(0).toImplementation(sideEffects) + "." + symbol.toImplementation() + "(";
+				String exp = null;
+				if (children.get(0) != null) {
+					exp = children.get(0).toImplementation(sideEffects) + "." + symbol.toImplementation() + "(";
+				} else {
+					exp = symbol.toImplementation() + "(";
+				}
 				String delimiter = "";
 				for (int i = 1; i < children.size(); i++) {
 					Expression e = children.get(i);
@@ -337,7 +342,11 @@ public class Term extends Expression {
 				exp += ")";
 				if (symbol.isImplWithSideEffect()) {
 					sideEffects[0] = sideEffects[0] + exp + ";\n";
-					exp = children.get(0).toImplementation(new String[] {""});
+					if (children.get(0) != null) {
+						exp = children.get(0).toImplementation(new String[] {""});
+					} else {
+						exp = "";
+					}
 				}
 				return exp;
 			} else {

@@ -1,0 +1,33 @@
+model {
+channel CIO3 {
+	out BGMVolume(b: Double, setBGM(b2)) == b2
+}
+channel CIO2 {
+	out soundVolume(s: Double, setSound(s2)) == s2
+}
+channel CIO1 {
+	out audioVolume(a: Double, setAudio(a2)) == a2
+}
+channel C1 {
+	in audioVolume(a, calc(a2, s2)) == a2
+	in soundVolume(s, calc(a2, s2)) == s2
+	out outputSoundVolume(os, calc(a2, s2)) == a2 * s2
+}
+channel C2 {
+	in audioVolume(a, calc(a2, b2)) == a2
+	in BGMVolume(b, calc(a2, b2)) == b2
+	out outputBGMVolume(ob, calc(a2, b2)) == a2 * b2
+}
+}
+geometry {
+	node r soundVolume:220,140,80,30
+	node r audioVolume:220,280,80,30
+	node r outputSoundVolume:650,190,80,30
+	node r BGMVolume:220,420,80,30
+	node r outputBGMVolume:650,340,80,30
+	node ioc CIO3:100,420,30,30
+	node ioc CIO2:100,140,30,30
+	node ioc CIO1:100,280,30,30
+	node c C1:530,190,30,30
+	node c C2:530,340,30,30
+}

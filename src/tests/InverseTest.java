@@ -16,10 +16,13 @@ import models.algebra.Expression;
 import models.algebra.Position;
 import models.algebra.Term;
 import models.algebra.Variable;
+import models.dataConstraintModel.DataConstraintModel;
+import models.dataConstraintModel.JsonType;
 import models.dataFlowModel.DataTransferModel;
 import parser.Parser;
 import parser.Parser.TokenStream;
 import parser.exceptions.ExpectedRightBracket;
+import parser.exceptions.WrongJsonExpression;
 
 public class InverseTest {
 	@Test
@@ -75,7 +78,7 @@ public class InverseTest {
 			HashMap<Position, Variable> rhsVars3 = rhsExp3.getVariables();
 			for (Position vPos: rhsVars3.keySet()) {
 				Variable v = rhsVars3.get(vPos);
-				Expression inv = rhsExp3.getInverseMap(z, vPos);		// inverse map to get v back from the output value y
+				Expression inv = rhsExp3.getInverseMap(z, vPos);		// inverse map to get v back from the output value z
 				if (inv instanceof Term) {
 					inv = ((Term) inv).reduce();
 				}
@@ -83,7 +86,31 @@ public class InverseTest {
 				assertFalse(inv.contains(v));
 				System.out.println(rhsVars3.get(vPos) + " = " + inv);
 			}			
-		} catch (ExpectedRightBracket e) {
+			
+			// Solve {z = x.id} for x
+			TokenStream stream4 = new Parser.TokenStream();
+			Parser parser4 = new Parser(stream4);
+			stream4.addLine("x.id");
+			Expression rhsExp4 = parser4.parseTerm(stream4, model);
+			System.out.println("=== solve{" + z + " = " + rhsExp4 + "} for x ===");
+			HashMap<Position, Variable> rhsVars4 = rhsExp4.getVariables();
+			for (Position vPos: rhsVars4.keySet()) {
+				Variable v = rhsVars4.get(vPos);
+				if (x.getName().equals("x")) {
+					JsonType jsonType = new JsonType("Json", "HashMap<>", DataConstraintModel.typeJson);
+					jsonType.addMemberType("id", DataConstraintModel.typeInt);
+					jsonType.addMemberType("name", DataConstraintModel.typeString);
+					v.setType(jsonType);
+				}
+				Expression inv = rhsExp4.getInverseMap(z, vPos);		// inverse map to get v back from the output value z
+				if (inv instanceof Term) {
+					inv = ((Term) inv).reduce();
+				}
+				System.out.println(rhsVars4.get(vPos) + " = " + inv);
+				assertTrue(inv.contains(z));
+				assertFalse(inv.contains(v));
+			}						
+		} catch (ExpectedRightBracket | WrongJsonExpression e) {
 			e.printStackTrace();
 		}
 	}

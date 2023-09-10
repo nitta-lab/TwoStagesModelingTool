@@ -39,11 +39,12 @@ import models.dataFlowModel.DataTransferChannel.IResourceStateAccessor;
 
 public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 
-	public void generateCodeFromFlowGraph(DataTransferModel model, IFlowGraph flowGraph, ArrayList<Node> components,
+	public void generateCodeFromFlowGraph(DataTransferModel model, IFlowGraph flowGraph, ArrayList<Set<Node>> components,
 			TypeDeclaration mainComponent, MethodDeclaration mainConstructor, ArrayList<CompilationUnit> codes, ILanguageSpecific langSpec) {
 		// For each of other components.
-		for (Node componentNode: components) {
+		for (Set<Node> componentNodeSet: components) {
 			// Declare this resource.
+			Node componentNode = componentNodeSet.iterator().next();
 			ResourceNode resourceNode = (ResourceNode) componentNode;
 			String resourceName = langSpec.toComponentName(resourceNode.getResource().getResourceName());
 			TypeDeclaration component = langSpec.newTypeDeclaration(resourceName);
@@ -55,12 +56,12 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 			// Update the main component for this component.
 			updateMainComponent(model, mainComponent, mainConstructor, componentNode, depends, langSpec);
 			
-			ResourcePath resId = resourceNode.getResource();
-			Type resStateType = resId.getResourceStateType();
+			ResourcePath res = resourceNode.getResource();
+			Type resStateType = res.getResourceStateType();
 			
 			// Declare the field in this resource to store the state.
 			if (((StoreAttribute) resourceNode.getAttribute()).isStored()) {
-				FieldDeclaration stateField = langSpec.newFieldDeclaration(resStateType, fieldOfResourceState, langSpec.getFieldInitializer(resStateType, resId.getInitialValue()));
+				FieldDeclaration stateField = langSpec.newFieldDeclaration(resStateType, fieldOfResourceState, langSpec.getFieldInitializer(resStateType, res.getInitialValue()));
 				component.addField(stateField);
 			}
 			
@@ -68,7 +69,7 @@ public class CodeGeneratorFromDataFlowGraph extends CodeGenerator {
 			MethodDeclaration getter = declareGetterMethod(resourceNode, component, resStateType, langSpec);
 			
 			// Declare the accessor method in the main component to call the getter method.
-			declareAccessorInMainComponent(mainComponent, resId, langSpec);
+			declareAccessorInMainComponent(mainComponent, res, langSpec);
 			
 			// Declare the fields to refer to reference resources.
 			declareFieldsToReferenceResources(model, resourceNode, component, constructor, depends, langSpec);

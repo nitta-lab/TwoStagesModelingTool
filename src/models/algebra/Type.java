@@ -9,28 +9,28 @@ public class Type {
 	private String interfaceTypeName;
 	private List<Type> parentTypes = new ArrayList<>();
 	
-	public Type(String typeName, String implementastionTypeName) {
+	public Type(String typeName, String implementationTypeName) {
 		this.typeName = typeName;
-		this.implementationTypeName = implementastionTypeName;
-		this.interfaceTypeName = implementastionTypeName;
+		this.implementationTypeName = implementationTypeName;
+		this.interfaceTypeName = implementationTypeName;
 	}
 	
-	public Type(String typeName, String implementastionTypeName, String interfaceTypeName) {
+	public Type(String typeName, String implementationTypeName, String interfaceTypeName) {
 		this.typeName = typeName;
-		this.implementationTypeName = implementastionTypeName;
+		this.implementationTypeName = implementationTypeName;
 		this.interfaceTypeName = interfaceTypeName;
 	}
 
-	public Type(String typeName, String implementastionTypeName, Type parentType) {
+	public Type(String typeName, String implementationTypeName, Type parentType) {
 		this.typeName = typeName;
-		this.implementationTypeName = implementastionTypeName;
-		this.interfaceTypeName = implementastionTypeName;
+		this.implementationTypeName = implementationTypeName;
+		this.interfaceTypeName = implementationTypeName;
 		this.parentTypes.add(parentType);
 	}
 	
-	public Type(String typeName, String implementastionTypeName, String interfaceTypeName, Type parentType) {
+	public Type(String typeName, String implementationTypeName, String interfaceTypeName, Type parentType) {
 		this.typeName = typeName;
-		this.implementationTypeName = implementastionTypeName;
+		this.implementationTypeName = implementationTypeName;
 		this.interfaceTypeName = interfaceTypeName;
 		this.parentTypes.add(parentType);
 	}

@@ -1,6 +1,5 @@
 package parser;
 
-import java.awt.image.DataBufferDouble;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -14,6 +13,8 @@ import models.algebra.Term;
 import models.algebra.Type;
 import models.algebra.Variable;
 import models.dataConstraintModel.ChannelMember;
+import models.dataConstraintModel.DataConstraintModel;
+import models.dataConstraintModel.JsonAccessor;
 import models.dataConstraintModel.ResourcePath;
 import models.dataConstraintModel.StateTransition;
 import models.dataFlowModel.DataTransferModel;
@@ -27,6 +28,7 @@ import parser.exceptions.ExpectedLeftCurlyBracket;
 import parser.exceptions.ExpectedRHSExpression;
 import parser.exceptions.ExpectedRightBracket;
 import parser.exceptions.ExpectedStateTransition;
+import parser.exceptions.WrongJsonExpression;
 import parser.exceptions.WrongLHSExpression;
 import parser.exceptions.WrongRHSExpression;
 
@@ -59,7 +61,8 @@ public class Parser {
 	public static final String ASSIGNMENT = "=";
 	public static final String COMMA = ",";
 	public static final String COLON = ":";
-
+	public static final String DOT = ".";
+	public static final String DOT_REGX = "\\.";
 
 	public Parser(final TokenStream stream) {
 		this.stream = stream;
@@ -79,12 +82,14 @@ public class Parser {
 	}
 	
 	public DataTransferModel doParse() 
-			throws ExpectedRightBracket, ExpectedChannel, ExpectedChannelName, ExpectedLeftCurlyBracket, ExpectedInOrOutOrRefKeyword, ExpectedStateTransition, ExpectedEquals, ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, ExpectedAssignment {
+			throws ExpectedRightBracket, ExpectedChannel, ExpectedChannelName, ExpectedLeftCurlyBracket, ExpectedInOrOutOrRefKeyword, 
+			ExpectedStateTransition, ExpectedEquals, ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, ExpectedAssignment, WrongJsonExpression {
 		return parseDataFlowModel();
 	}
 
 	public DataTransferModel parseDataFlowModel() 
-			throws ExpectedRightBracket, ExpectedChannel, ExpectedChannelName, ExpectedLeftCurlyBracket, ExpectedInOrOutOrRefKeyword, ExpectedStateTransition, ExpectedEquals, ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, ExpectedAssignment {
+			throws ExpectedRightBracket, ExpectedChannel, ExpectedChannelName, ExpectedLeftCurlyBracket, ExpectedInOrOutOrRefKeyword, 
+			ExpectedStateTransition, ExpectedEquals, ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, ExpectedAssignment, WrongJsonExpression {
 		DataTransferModel model = new DataTransferModel();
 		DataTransferChannel channel;
 		while ((channel = parseChannel(model)) != null) {
@@ -102,7 +107,7 @@ public class Parser {
 			ExpectedLeftCurlyBracket, ExpectedRightBracket, ExpectedAssignment,
 			ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, 
 			ExpectedChannel, ExpectedChannelName, ExpectedInOrOutOrRefKeyword, 
-			ExpectedStateTransition, ExpectedEquals
+			ExpectedStateTransition, ExpectedEquals, WrongJsonExpression
 	{
 		if (!stream.hasNext()) return null;
 		if (stream.checkNext().equals(RIGHT_CURLY_BRACKET)) return null;
@@ -152,7 +157,7 @@ public class Parser {
 
 	public void parseInit(DataTransferModel model) 
 			throws 
-			ExpectedLeftCurlyBracket, ExpectedAssignment, ExpectedRHSExpression, WrongRHSExpression, ExpectedRightBracket 
+			ExpectedLeftCurlyBracket, ExpectedAssignment, ExpectedRHSExpression, WrongRHSExpression, ExpectedRightBracket, WrongJsonExpression 
 	{
 		String leftBracket = stream.next();
 		if (!leftBracket.equals(LEFT_CURLY_BRACKET)) throw new ExpectedLeftCurlyBracket(stream.getLine());
@@ -186,7 +191,7 @@ public class Parser {
 	public ChannelMember parseChannelMember(DataTransferModel model, final String inOrOutOrRef) 
 			throws 
 			ExpectedRightBracket, ExpectedStateTransition, ExpectedEquals, 
-			ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression
+			ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, WrongJsonExpression
 	{
 		if (!stream.hasNext()) throw new ExpectedStateTransition(stream.getLine());
 		Expression leftTerm = parseTerm(stream, model);
@@ -240,7 +245,7 @@ public class Parser {
 	}
 
 	public Expression parseTerm(TokenStream stream, DataTransferModel model) 
-			throws ExpectedRightBracket
+			throws ExpectedRightBracket, WrongJsonExpression
 	{
 		ArrayList<Expression> expressions = new ArrayList<>();
 		ArrayList<Symbol> operators = new ArrayList<>();
@@ -283,31 +288,29 @@ public class Parser {
 					symbol.setArity(arity);
 					exp = term;
 				} else {
-					// constant or variable
-					try {
-						Symbol symbol = model.getSymbol(symbolName);
-						if (symbol != null && symbol.getArity() == 0) {
-							exp = new Constant(symbol);
-						} else {
+					// constant or variable or json access
+					Symbol symbol = model.getSymbol(symbolName);
+					if (symbol != null && symbol.getArity() == 0) {
+						// a constant
+						exp = new Constant(symbol);
+					} else {
+						if (Character.isDigit(symbolName.charAt(0))) {
+							// maybe a numerical value
+							if (stream.checkNext() != null && stream.checkNext().equals(DOT)) {
+								// Because tokens are separated by a DOT.
+								stream.next();
+								symbolName += DOT + stream.next();	// decimal fraction
+							}
 							Double d = Double.parseDouble(symbolName);
-							if (symbolName.contains(".")) {
+							// a numerical value
+							if (symbolName.contains(DOT)) {
 								exp = new Constant(symbolName, DataTransferModel.typeDouble);
 							} else {
 								exp = new Constant(symbolName, DataTransferModel.typeInt);
 							}
-						}
-					} catch (NumberFormatException e) {
-						if (stream.checkNext() != null && stream.checkNext().equals(COLON)) {
-							// when a type is specified.
-							stream.next();
-							String typeName = stream.next();
-							Type type = model.getType(typeName);
-							if (type == null) {
-								type = new Type(typeName, typeName);
-							}
-							exp = new Variable(symbolName, type);							
 						} else {
-							exp = new Variable(symbolName);
+							// a variable
+							exp = parseVariable(stream, model, symbolName);
 						}
 					}
 				}
@@ -324,16 +327,52 @@ public class Parser {
 				break;
 			} else if (operator.equals(ADD)) {
 				operators.add(DataTransferModel.add);
+				stream.next();
 			} else if (operator.equals(MUL)) {
 				operators.add(DataTransferModel.mul);
+				stream.next();
 			} else if (operator.equals(SUB)) {
 				operators.add(DataTransferModel.sub);	// not minus
+				stream.next();
 			} else if (operator.equals(DIV)) {
 				operators.add(DataTransferModel.div);
+				stream.next();
+			} else if (operator.equals(DOT)) {
+				// json accessor
+				Expression exp = expressions.remove(0);
+				stream.next();		// DOT
+				if (stream.checkNext() == null) throw new WrongJsonExpression(stream.getLine());
+				String literalOrLeftCurlyBracket = stream.next();
+				Expression paramTerm = null;
+				if (literalOrLeftCurlyBracket.equals(LEFT_CURLY_BRACKET)) {
+					// parameter
+					paramTerm = parseTerm(stream, model);
+					String rightCurlyBracket = stream.next();
+					if (rightCurlyBracket == null || !rightCurlyBracket.equals(RIGHT_CURLY_BRACKET)) throw new WrongJsonExpression(stream.getLine());			
+				} else {
+					// literal
+					paramTerm = new Constant(literalOrLeftCurlyBracket, DataTransferModel.typeString);
+				}
+				Type paramType = null;
+				if (paramTerm instanceof Variable) {
+					paramType = ((Variable) paramTerm).getType();
+				} else if (paramTerm instanceof Term) {
+					paramType = ((Term) paramTerm).getType();
+				}
+				Term term = null;
+				if (paramType != null && DataConstraintModel.typeInt.isAncestorOf(paramType)) {
+					term = new JsonAccessor(DataConstraintModel.dotParam);
+				} else {
+					term = new JsonAccessor(DataConstraintModel.dot);
+				}
+				term.addChild(exp);
+				term.addChild(paramTerm);
+				expressions.add(term);
+				operator = stream.checkNext();
+				if (operator == null || !operator.equals(DOT)) break;
 			} else {
 				break;
 			}
-			stream.next();		// an arithmetic operator
 		}
 		if (expressions.size() == 1) {
 			// no arithmetic operators
@@ -370,6 +409,23 @@ public class Parser {
 			i++;
 		}
 		return firstMonomial;
+	}
+
+	private Variable parseVariable(TokenStream stream, DataTransferModel model, String symbolName) {
+		Variable var;
+		if (stream.checkNext() != null && stream.checkNext().equals(COLON)) {
+			// when a type is specified.
+			stream.next();
+			String typeName = stream.next();
+			Type type = model.getType(typeName);
+			if (type == null) {
+				type = new Type(typeName, typeName);
+			}
+			var = new Variable(symbolName, type);							
+		} else {
+			var = new Variable(symbolName);
+		}
+		return var;
 	}
 
 	/**--------------------------------------------------------------------------------
@@ -416,15 +472,18 @@ public class Parser {
 																					splitBy(
 																							splitBy(
 																									splitBy(
-																											Arrays.asList(line.split("[ \t]")), 
-																											ADD,
-																											ADD_REGX),
-																									MUL,
-																									MUL_REGX),
-																							SUB,
-																							SUB_REGX),
-																					DIV,
-																					DIV_REGX),
+																											splitBy(
+																													Arrays.asList(line.split("[ \t]")), 
+																													ADD,
+																													ADD_REGX),
+																											MUL,
+																											MUL_REGX),
+																									SUB,
+																									SUB_REGX),
+																							DIV,
+																							DIV_REGX),
+																					DOT,
+																					DOT_REGX),
 																			COMMA, 
 																			COMMA),
 																	COLON, 

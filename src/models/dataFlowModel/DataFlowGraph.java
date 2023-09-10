@@ -2,6 +2,7 @@ package models.dataFlowModel;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -51,7 +52,13 @@ public class DataFlowGraph extends DirectedGraph implements IFlowGraph {
 	}
 
 	@Override
-	public Set<Node> getAllNodes() {
-		return super.getNodes();
+	public Map<Node, Set<Node>> getAllNodes() {
+		Map<Node, Set<Node>> allNodeSets = new HashMap<>();
+		for (Node n: super.getNodes()) {
+			Set<Node> nodeSet = new HashSet<>();
+			nodeSet.add(n);
+			allNodeSets.put(n, nodeSet);
+		}
+		return allNodeSets;
 	}
 }

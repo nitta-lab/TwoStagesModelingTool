@@ -31,9 +31,10 @@ public class DataConstraintModel {
 	public static final Type typePairInt = new Type("Pair", "Pair<Integer>", "Pair<Integer>", typePair);
 	public static final Type typePairStr = new Type("Pair", "Pair<String>", "Pair<String>", typePair);
 	public static final Type typePairDouble = new Type("Pair", "Pair<Double>", "Pair<Double>", typePair);
-	public static final Type typeMap = new Type("Map", "HashMap", "Map");
+	public static final Type typeMap = new Type("Map", "HashMap<>", "Map");
+	public static final JsonType typeJson = new JsonType("Json", "HashMap<>", "Map<String, Object>");
 	public static final Symbol add = new Symbol(Parser.ADD, 2, Symbol.Type.INFIX);
-	public static final Symbol mul = new Symbol(Parser.MUL, 2, Symbol.Type.INFIX);;
+	public static final Symbol mul = new Symbol(Parser.MUL, 2, Symbol.Type.INFIX);
 	public static final Symbol sub = new Symbol(Parser.SUB, 2, Symbol.Type.INFIX);
 	public static final Symbol div = new Symbol(Parser.DIV, 2, Symbol.Type.INFIX);
 	public static final Symbol minus = new Symbol(Parser.MINUS, 1);
@@ -147,6 +148,10 @@ public class DataConstraintModel {
 			return temp;
 		}
 	});
+	public static final Symbol json = new Symbol("json", 0, Symbol.Type.PREFIX, "new HashMap<>", Symbol.Type.METHOD);
+	public static final Symbol addMember = new Symbol("addMember", 3, Symbol.Type.PREFIX, "put", Symbol.Type.METHOD);
+	public static final Symbol dot = new Symbol(Parser.DOT, 2, Symbol.Type.INFIX, "get", Symbol.Type.METHOD);
+	public static final Symbol dotParam = new Symbol(Parser.DOT, 2, Symbol.Type.INFIX, "get", Symbol.Type.METHOD);
 	public static final Symbol pi = new Symbol("PI", 0, Symbol.Type.PREFIX, "Math.PI", Symbol.Type.PREFIX);
 	public static final Symbol E = new Symbol("E", 0, Symbol.Type.PREFIX, "Math.E", Symbol.Type.PREFIX);
 	public static final Symbol sqrt = new Symbol("sqrt", 1, Symbol.Type.PREFIX, "Math.sqrt", Symbol.Type.PREFIX);
@@ -198,6 +203,10 @@ public class DataConstraintModel {
 		snd.setInverses(new Symbol[] {new LambdaAbstraction(new Variable("y"), new Term(tuple, new Expression[] {new Variable("x"), new Variable("y")}))});
 		insert.setSignature(new Type[] {typeMap, typeMap, null, null});
 		lookup.setSignature(new Type[] {null, typeMap, null});
+		json.setSignature(new Type[] {typeJson});
+		addMember.setSignature(new Type[] {typeJson, typeJson, typeString, null});
+		dot.setSignature(new Type[] {null, typeJson, typeString});
+		dotParam.setSignature(new Type[] {null, null, null});
 		pi.setSignature(new Type[] {typeDouble});
 		E.setSignature(new Type[] {typeDouble});
 		sqrt.setSignature(new Type[] {typeDouble, typeDouble});
@@ -233,6 +242,7 @@ public class DataConstraintModel {
 		addType(typePair);
 		addType(typeTuple);
 		addType(typeMap);
+		addType(typeJson);
 		symbols = new HashMap<>();
 		addSymbol(add);
 		addSymbol(mul);
@@ -269,6 +279,10 @@ public class DataConstraintModel {
 		addSymbol(snd);
 		addSymbol(insert);
 		addSymbol(lookup);
+		addSymbol(json);
+		addSymbol(addMember);
+		addSymbol(dot);
+		addSymbol(dotParam);
 		addSymbol(pi);
 		addSymbol(E);
 		addSymbol(sqrt);

@@ -13,6 +13,7 @@ import java.util.Set;
 import javax.xml.crypto.Data;
 
 import models.Node;
+import models.algebra.Constant;
 import models.algebra.Expression;
 import models.algebra.Position;
 import models.algebra.Symbol;
@@ -22,6 +23,7 @@ import models.algebra.Variable;
 import models.dataConstraintModel.Channel;
 import models.dataConstraintModel.ChannelMember;
 import models.dataConstraintModel.DataConstraintModel;
+import models.dataConstraintModel.JsonType;
 import models.dataConstraintModel.ResourcePath;
 import models.dataConstraintModel.StateTransition;
 import models.dataFlowModel.DataTransferModel;
@@ -42,6 +44,8 @@ public class TypeInference {
 	static private Map<Type, Type> pairComponentTypes = new HashMap<>();
 	static private Map<List<Type>, Type> mapTypes = new HashMap<>();
 	static private Map<Type, List<Type>> mapComponentTypes = new HashMap<>();
+	static private Map<Map<String, Type>, Type> jsonTypes = new HashMap<>();
+	static private Map<Type, Map<String, Type>> jsonMemberTypes = new HashMap<>();
 
 	public static Type getListType(Type compType) {
 		return listTypes.get(compType);
@@ -83,6 +87,14 @@ public class TypeInference {
 		return mapComponentTypes.get(mapType);
 	}
 
+	public static Type getJsonType(Map<String, Type> memberTypes) {
+		return jsonTypes.get(memberTypes);
+	}
+
+	public static Map<String, Type> getJsonMemberTypes(Type jsonType) {
+		return jsonMemberTypes.get(jsonType);
+	}
+
 	static public void infer(DataTransferModel model) {
 		Map<ResourcePath, List<Expression>> resources = new HashMap<>();
 		Map<Integer, Type> variables = new HashMap<>();
@@ -91,6 +103,9 @@ public class TypeInference {
 		Map<Integer, Type> tuple = new HashMap<>();
 		Map<Integer, Type> pair = new HashMap<>();
 		Map<Integer, Type> map = new HashMap<>();
+		Map<Integer, Type> json = new HashMap<>();
+		
+		// Maps from the objectId of each expression to its belonging group that has the same type as the expression
 		Map<Integer, List<Expression>> expToResource = new HashMap<>();
 		Map<Integer, List<Expression>> expToVariable = new HashMap<>();
 		Map<Integer, List<Expression>> expToMessage = new HashMap<>();
@@ -98,7 +113,9 @@ public class TypeInference {
 		Map<Integer, Set<List<Expression>>> expToTuple = new HashMap<>();
 		Map<Integer, Set<List<Expression>>> expToPair = new HashMap<>();
 		Map<Integer, Set<List<Expression>>> expToMap = new HashMap<>();
+		Map<Integer, Set<List<Expression>>> expToJson = new HashMap<>();
 
+		// Maps from the objectId of each group to the set of updated expressions.
 		Map<Integer, Map<Integer, Expression>> updateFromResource = new HashMap<>();
 		Map<Integer, Map<Integer, Expression>> updateFromVariable = new HashMap<>();
 		Map<Integer, Map<Integer, Expression>> updateFromMessage = new HashMap<>();
@@ -106,6 +123,7 @@ public class TypeInference {
 		Map<Integer, Map<Integer, Expression>> updateFromTuple = new HashMap<>();
 		Map<Integer, Map<Integer, Expression>> updateFromPair = new HashMap<>();
 		Map<Integer, Map<Integer, Expression>> updateFromMap = new HashMap<>();
+		Map<Integer, Map<Integer, Expression>> updateFromJson = new HashMap<>();
 
 		listComponentTypes.put(DataConstraintModel.typeList, null);
 		listComponentTypes.put(DataConstraintModel.typeListInt, DataConstraintModel.typeInt);
@@ -128,24 +146,24 @@ public class TypeInference {
 		for (Channel c : channels) {
 			for (ChannelMember cm : c.getChannelMembers()) {
 				StateTransition st = cm.getStateTransition();
-				ResourcePath id = cm.getResource();
+				ResourcePath res = cm.getResource();
 				
 				// 1.1 Group expressions by resources.
-				List<Expression> sameResource = resources.get(id);
+				List<Expression> sameResource = resources.get(res);
 				if (sameResource == null) {
 					sameResource = new ArrayList<>();
-					resources.put(id, sameResource);
+					resources.put(res, sameResource);
 				}
 				sameResource.add(st.getCurStateExpression());
 				if (st.getNextStateExpression() != null) sameResource.add(st.getNextStateExpression());
 				expToResource.put(System.identityHashCode(st.getCurStateExpression()), sameResource);
 				if (st.getNextStateExpression() != null) expToResource.put(System.identityHashCode(st.getNextStateExpression()), sameResource);
 				Map<Integer, Expression> updatedExps = getUpdateSet(updateFromResource, sameResource);
-				Type resType = id.getResourceStateType();
+				Type resType = res.getResourceStateType();
 				Expression exp = st.getCurStateExpression();
 				Type expType = getExpTypeIfUpdatable(resType, exp);
 				if (expType != null) {
-					id.setResourceStateType(expType);
+					res.setResourceStateType(expType);
 					for (Expression resExp : sameResource) {
 						if (resExp != exp) {
 							if (resExp instanceof Variable && compareTypes(((Variable) resExp).getType(), expType)) {
@@ -168,12 +186,12 @@ public class TypeInference {
 						updatedExps.put(System.identityHashCode(exp), exp);
 					}
 				}
-				resType = id.getResourceStateType();
+				resType = res.getResourceStateType();
 				exp = st.getNextStateExpression();
 				if (exp != null) {
 					expType = getExpTypeIfUpdatable(resType, exp);
 					if (expType != null) {
-						id.setResourceStateType(expType);
+						res.setResourceStateType(expType);
 						for (Expression resExp : sameResource) {
 							if (resExp != exp) {
 								if (resExp instanceof Variable && compareTypes(((Variable) resExp).getType(), expType)) {
@@ -343,7 +361,7 @@ public class TypeInference {
 					if (symbol.equals(DataConstraintModel.cons) || symbol.equals(DataConstraintModel.set)) {
 						// If the root symbol of the term is cons or set.
 						List<Expression> consExps = new ArrayList<>();
-						consExps.add(t);
+						consExps.add(t);	// list term
 						updateExpressionBelonging(expToConsOrSet, t, consExps);
 						if (symbol.equals(DataConstraintModel.cons)) {
 							// If the root symbol of the term is cons.
@@ -354,10 +372,10 @@ public class TypeInference {
 						} else {
 							// If the root symbol of the term is set.
 							Expression e = t.getChildren().get(2);
-							consExps.add(e);
+							consExps.add(e);	// list component
 							updateExpressionBelonging(expToConsOrSet, e, consExps);
 							e = t.getChildren().get(0);
-							consExps.add(e);
+							consExps.add(e);	// list argument
 							updateExpressionBelonging(expToConsOrSet, e, consExps);							
 						}
 						Type newType = getExpTypeIfUpdatable(t.getType(), consExps.get(2));
@@ -410,9 +428,9 @@ public class TypeInference {
 						// If the root symbol of the term is head or get.
 						List<Expression> consExps = new ArrayList<>();
 						Expression e = t.getChildren().get(0);
-						consExps.add(e);
+						consExps.add(e);		// list argument
 						updateExpressionBelonging(expToConsOrSet, e, consExps);
-						consExps.add(t);
+						consExps.add(t);		// list's component
 						updateExpressionBelonging(expToConsOrSet, t, consExps);
 						consExps.add(null);
 						Type listType = listTypes.get(t.getType());
@@ -446,11 +464,11 @@ public class TypeInference {
 					} else if (symbol.equals(DataConstraintModel.tail)) {
 						// If the root symbol of the term is tail.
 						List<Expression> consExps = new ArrayList<>();
-						consExps.add(t);
+						consExps.add(t);		// list term
 						updateExpressionBelonging(expToConsOrSet, t, consExps);
-						consExps.add(null);
+						consExps.add(null);		// list's component
 						Expression e = t.getChildren().get(0);
-						consExps.add(e);
+						consExps.add(e);		// list argument
 						updateExpressionBelonging(expToConsOrSet, e, consExps);							
 						Type newType = getExpTypeIfUpdatable(t.getType(), consExps.get(2));
 						if (newType != null) {
@@ -482,26 +500,27 @@ public class TypeInference {
 					} else if (symbol.equals(DataConstraintModel.tuple)) {
 						// If the root symbol of the term is tuple.
 						List<Expression> tupleExps = new ArrayList<>();
-						List<Type> argsTypeList = new ArrayList<>();
-						tupleExps.add(t);
+						List<Type> newArgTypesList = new ArrayList<>();
+						tupleExps.add(t);	// tuple term
 						updateExpressionBelonging(expToTuple, t, tupleExps);
 						for (Expression e : t.getChildren()) {
-							tupleExps.add(e);
+							tupleExps.add(e);	// tuple's component
 							updateExpressionBelonging(expToTuple, e, tupleExps);
 							if (e instanceof Variable) {
-								argsTypeList.add(((Variable) e).getType());
+								newArgTypesList.add(((Variable) e).getType());
 							} else if (e instanceof Term) {
-								argsTypeList.add(((Term) e).getType());
+								newArgTypesList.add(((Term) e).getType());
 							} else {
-								argsTypeList.add(null);
+								newArgTypesList.add(null);
 							}
 						}
 						if (t.getType() == DataConstraintModel.typeTuple) {
-							Type newTupleType = tupleTypes.get(argsTypeList);
+							Type newTupleType = tupleTypes.get(newArgTypesList);
 							if (newTupleType == null) {
 								// Create new tuple type;
-								newTupleType = createNewTupleType(argsTypeList, DataConstraintModel.typeTuple);
+								newTupleType = createNewTupleType(newArgTypesList, DataConstraintModel.typeTuple);
 							}
+							// Update the type of the tuple term and record the updated expression.
 							t.setType(newTupleType);
 							Map<Integer, Expression> updateExps = getUpdateSet(updateFromTuple, tupleExps);
 							updateExps.put(System.identityHashCode(t), t);
@@ -510,22 +529,22 @@ public class TypeInference {
 					} else if (symbol.equals(DataConstraintModel.pair)) {
 						// If the root symbol of the term is pair.
 						List<Expression> pairExps = new ArrayList<>();
-						pairExps.add(t);
+						pairExps.add(t);		// pair
 						updateExpressionBelonging(expToPair, t, pairExps);
 						if (t.getType() == DataConstraintModel.typePair) {
 							for (Expression e : t.getChildren()) {
-								pairExps.add(e);
+								pairExps.add(e);	// left/right
 								updateExpressionBelonging(expToPair, e, pairExps);
-								Type argType = null;
+								Type newArgType = null;
 								if (e instanceof Variable) {
-									argType = (((Variable) e).getType());
+									newArgType = (((Variable) e).getType());
 									
 								} else if (e instanceof Term) {
-									argType = (((Term) e).getType());
+									newArgType = (((Term) e).getType());
 								}
 								
-								if (argType != null) {
-									Type newPairType = pairTypes.get(argType);
+								if (newArgType != null) {
+									Type newPairType = pairTypes.get(newArgType);
 									if (newPairType != null) {
 										t.setType(newPairType);
 										Map<Integer, Expression> updateExps = getUpdateSet(updateFromPair, pairExps);
@@ -540,11 +559,11 @@ public class TypeInference {
 						// If the root symbol of the term is fst.
 						List<Expression> tupleExps = new ArrayList<>();
 						Expression arg = t.getChildren().get(0);
-						tupleExps.add(arg);
+						tupleExps.add(arg);		// tuple argument
 						updateExpressionBelonging(expToTuple, arg, tupleExps);
-						tupleExps.add(t);
+						tupleExps.add(t);		// first component
 						updateExpressionBelonging(expToTuple, t, tupleExps);
-						tupleExps.add(null);
+						tupleExps.add(null);	// second component
 						Type argType = null;
 						if (arg instanceof Variable) {
 							argType = ((Variable) arg).getType();
@@ -553,16 +572,17 @@ public class TypeInference {
 						}
 						Type newTupleType = DataConstraintModel.typeTuple;
 						if (argType == DataConstraintModel.typeTuple && t.getType() != null) {
-							List<Type> compTypeList = new ArrayList<>();
-							compTypeList.add(t.getType());
-							compTypeList.add(null);
-							newTupleType = tupleTypes.get(compTypeList);
+							List<Type> newCompTypeList = new ArrayList<>();
+							newCompTypeList.add(t.getType());
+							newCompTypeList.add(null);
+							newTupleType = tupleTypes.get(newCompTypeList);
 							if (newTupleType == null) {
 								// Create new tuple type;
-								newTupleType = createNewTupleType(compTypeList, DataConstraintModel.typeTuple);
+								newTupleType = createNewTupleType(newCompTypeList, DataConstraintModel.typeTuple);
 							}
 						}
 						if (argType != newTupleType && newTupleType != null) {
+							// Update the type of the tuple argument and record the updated expression.
 							if (arg instanceof Variable) {
 								((Variable) arg).setType(newTupleType);
 								argType = newTupleType;
@@ -578,10 +598,10 @@ public class TypeInference {
 						// If the root symbol of the term is snd.
 						List<Expression> tupleExps = new ArrayList<>();
 						Expression arg = t.getChildren().get(0);
-						tupleExps.add(arg);
+						tupleExps.add(arg);		// tuple argument
 						updateExpressionBelonging(expToTuple, arg, tupleExps);
-						tupleExps.add(null);
-						tupleExps.add(t);
+						tupleExps.add(null);	// first component
+						tupleExps.add(t);		// second component
 						updateExpressionBelonging(expToTuple, t, tupleExps);
 						Type argType = null;
 						if (arg instanceof Variable) {
@@ -591,27 +611,28 @@ public class TypeInference {
 						}
 						Type newTupleType = DataConstraintModel.typeTuple;
 						if (argType == DataConstraintModel.typeTuple && t.getType() != null) {
-							List<Type> compTypeList = new ArrayList<>();
-							compTypeList.add(null);
+							List<Type> newCompTypeList = new ArrayList<>();
+							newCompTypeList.add(null);
 							if (DataConstraintModel.typeTuple.isAncestorOf(t.getType())) {
 								List<Type> sndTypes = tupleComponentTypes.get(t.getType());
 								if (sndTypes != null) {
 									for (Type t2: sndTypes) {
-										compTypeList.add(t2);
+										newCompTypeList.add(t2);
 									}
 								} else {
-									compTypeList.add(t.getType());
+									newCompTypeList.add(t.getType());
 								}
 							} else {
-								compTypeList.add(t.getType());
+								newCompTypeList.add(t.getType());
 							}
-							newTupleType = tupleTypes.get(compTypeList);
+							newTupleType = tupleTypes.get(newCompTypeList);
 							if (newTupleType == null) {
 								// Create new tuple type;
-								newTupleType = createNewTupleType(compTypeList, DataConstraintModel.typeTuple);
+								newTupleType = createNewTupleType(newCompTypeList, DataConstraintModel.typeTuple);
 							}
 						}
 						if (argType != newTupleType && newTupleType != null) {
+							// Update the type of the tuple argument and record the updated expression.
 							if (arg instanceof Variable) {
 								((Variable) arg).setType(newTupleType);
 								argType = newTupleType;
@@ -627,11 +648,11 @@ public class TypeInference {
 						// If the root symbol of the term is left.
 						List<Expression> pairExps = new ArrayList<>();
 						Expression arg = t.getChildren().get(0);
-						pairExps.add(arg);
+						pairExps.add(arg);		// pair
 						updateExpressionBelonging(expToPair, arg, pairExps);
-						pairExps.add(t);
+						pairExps.add(t);		// left
 						updateExpressionBelonging(expToPair, t, pairExps);
-						pairExps.add(null);
+						pairExps.add(null);		// right
 						Type argType = null;
 						if (arg instanceof Variable) {
 							argType = ((Variable) arg).getType();
@@ -640,13 +661,13 @@ public class TypeInference {
 						}
 						Type newPairType = DataConstraintModel.typePair;
 						if (argType == DataConstraintModel.typePair && t.getType() != null) {
-							List<Type> compTypeList = new ArrayList<>();
-							compTypeList.add(t.getType());
-							compTypeList.add(null);
-							newPairType = pairTypes.get(compTypeList);
+							List<Type> newCompTypeList = new ArrayList<>();
+							newCompTypeList.add(t.getType());
+							newCompTypeList.add(null);
+							newPairType = pairTypes.get(newCompTypeList);
 							if (newPairType == null) {
 								// Create new tuple type;
-								newPairType = createNewTupleType(compTypeList, DataConstraintModel.typePair);
+								newPairType = createNewTupleType(newCompTypeList, DataConstraintModel.typePair);
 							}
 						}
 						if (argType != newPairType && newPairType != null) {
@@ -665,10 +686,10 @@ public class TypeInference {
 						// If the root symbol of the term is right.
 						List<Expression> pairExps = new ArrayList<>();
 						Expression arg = t.getChildren().get(0);
-						pairExps.add(arg);
+						pairExps.add(arg);		// pair
 						updateExpressionBelonging(expToPair, arg, pairExps);
-						pairExps.add(null);
-						pairExps.add(t);
+						pairExps.add(null);		// left
+						pairExps.add(t);		// right
 						updateExpressionBelonging(expToPair, t, pairExps);
 						Type argType = null;
 						if (arg instanceof Variable) {
@@ -678,13 +699,13 @@ public class TypeInference {
 						}
 						Type newPairType = DataConstraintModel.typePair;
 						if (argType == DataConstraintModel.typePair && t.getType() != null) {
-							List<Type> compTypeList = new ArrayList<>();
-							compTypeList.add(null);
-							compTypeList.add(t.getType());
-							newPairType = pairTypes.get(compTypeList);
+							List<Type> newCompTypeList = new ArrayList<>();
+							newCompTypeList.add(null);
+							newCompTypeList.add(t.getType());
+							newPairType = pairTypes.get(newCompTypeList);
 							if (newPairType == null) {
 								// Create new tuple type;
-								newPairType = createNewTupleType(compTypeList, DataConstraintModel.typePair);
+								newPairType = createNewTupleType(newCompTypeList, DataConstraintModel.typePair);
 							}
 						}
 						if (argType != newPairType && newPairType != null) {
@@ -716,21 +737,22 @@ public class TypeInference {
 						} else if (arg1 instanceof Term) {
 							arg1Type = ((Term) arg1).getType();
 						}
-						List<Type> compTypeList = new ArrayList<>();
+						List<Type> newCompTypeList = new ArrayList<>();
 						if (arg2 instanceof Variable) {
-							compTypeList.add(((Variable) arg2).getType());
+							newCompTypeList.add(((Variable) arg2).getType());
 						} else if (arg2 instanceof Term) {
-							compTypeList.add(((Term) arg2).getType());
+							newCompTypeList.add(((Term) arg2).getType());
 						} else {
-							compTypeList.add(null);
+							newCompTypeList.add(null);
 						}
-						compTypeList.add(t.getType());
+						newCompTypeList.add(t.getType());
 						if (arg1Type == DataConstraintModel.typeMap || arg1Type == null) {
-							Type newMapType = mapTypes.get(compTypeList);
+							Type newMapType = mapTypes.get(newCompTypeList);
 							if (newMapType == null) {
 								// Create new tuple type;
-								newMapType = createNewMapType(compTypeList, DataConstraintModel.typeMap);
+								newMapType = createNewMapType(newCompTypeList, DataConstraintModel.typeMap);
 							}
+							// Update the type of the map argument and record the updated expression.
 							if (arg1 instanceof Variable) {
 								((Variable) arg1).setType(newMapType);
 								arg1Type = newMapType;
@@ -757,33 +779,186 @@ public class TypeInference {
 						mapExps.add(arg0);
 						updateExpressionBelonging(expToMap, arg0, mapExps);
 						Type termType = t.getType();
-						List<Type> compTypeList = new ArrayList<>();
+						List<Type> newCompTypeList = new ArrayList<>();
 						if (arg1 instanceof Variable) {
-							compTypeList.add(((Variable) arg1).getType());
+							newCompTypeList.add(((Variable) arg1).getType());
 						} else if (arg1 instanceof Term) {
-							compTypeList.add(((Term) arg1).getType());
+							newCompTypeList.add(((Term) arg1).getType());
 						} else {
-							compTypeList.add(null);
+							newCompTypeList.add(null);
 						}
 						if (arg2 instanceof Variable) {
-							compTypeList.add(((Variable) arg2).getType());
+							newCompTypeList.add(((Variable) arg2).getType());
 						} else if (arg2 instanceof Term) {
-							compTypeList.add(((Term) arg2).getType());
+							newCompTypeList.add(((Term) arg2).getType());
 						} else {
-							compTypeList.add(null);
+							newCompTypeList.add(null);
 						}
 						if (termType == DataConstraintModel.typeMap || termType == null) {
-							Type newMapType = mapTypes.get(compTypeList);
+							Type newMapType = mapTypes.get(newCompTypeList);
 							if (newMapType == null) {
 								// Create new tuple type;
-								newMapType = createNewMapType(compTypeList, DataConstraintModel.typeMap);
+								newMapType = createNewMapType(newCompTypeList, DataConstraintModel.typeMap);
 							}
+							// Update the type of the map term and record the updated expression.
 							t.setType(newMapType);
 							termType = newMapType;
 							Map<Integer, Expression> updateExps = getUpdateSet(updateFromMap, mapExps);
 							updateExps.put(System.identityHashCode(t), t);
 						}
 						map.put(System.identityHashCode(mapExps), termType);
+					} else if (symbol.equals(DataConstraintModel.addMember)) {
+						// If the root symbol of the term is addMember (addMember(json, key, value)).
+						List<Expression> dotExps = new ArrayList<>();
+						Expression jsonArg = t.getChildren().get(0);
+						Expression keyArg = t.getChildren().get(1);
+						Expression valueArg = t.getChildren().get(2);
+						dotExps.add(t);			// json
+						updateExpressionBelonging(expToJson, t, dotExps);
+						dotExps.add(keyArg);	// key
+						updateExpressionBelonging(expToJson, keyArg, dotExps);
+						dotExps.add(valueArg);	// value
+						updateExpressionBelonging(expToJson, valueArg, dotExps);
+						dotExps.add(jsonArg);	// json
+						updateExpressionBelonging(expToJson, jsonArg, dotExps);
+						Type jsonType = t.getType();
+						Type valueType = null;
+						if (valueArg instanceof Variable) {
+							valueType = ((Variable) valueArg).getType();
+						} else if (valueArg instanceof Term) {
+							valueType = ((Term) valueArg).getType();
+						}
+						String keyName = null;
+						if (keyArg instanceof Constant) {
+							keyName = ((Constant) keyArg).getSymbol().getName();
+						}
+						Type jsonArgType = null;
+						if (jsonArg instanceof Variable) {
+							jsonArgType = ((Variable) jsonArg).getType();
+						} else if (jsonArg instanceof Term) {
+							jsonArgType = ((Term) jsonArg).getType();
+						}
+						Type newJsonType = DataConstraintModel.typeJson;
+						if (jsonType == DataConstraintModel.typeJson && jsonArgType != null && keyName != null) {
+							Map<String, Type> newMemberTypes = new HashMap<>(((JsonType) jsonArgType).getMemberTypes());
+							newMemberTypes.put(keyName, valueType);
+							newJsonType = jsonTypes.get(newMemberTypes);
+							if (newJsonType == null) {
+								// Create new json type;
+								newJsonType = createNewJsonType(newMemberTypes, DataConstraintModel.typeJson);
+							}
+						}
+						if (jsonType != newJsonType && newJsonType != null) {
+							// Update the type of the json term and record the updated expression.
+							t.setType(newJsonType);
+							jsonType = newJsonType;
+							Map<Integer, Expression> updateExps = getUpdateSet(updateFromJson, dotExps);
+							updateExps.put(System.identityHashCode(t), t);
+						}
+						json.put(System.identityHashCode(dotExps), jsonType);
+					} else if (symbol.equals(DataConstraintModel.dot)) {
+						// If the root symbol of the term is dot (json.property).
+						List<Expression> dotExps = new ArrayList<>();
+						Expression jsonArg = t.getChildren().get(0);
+						Expression keyArg = t.getChildren().get(1);
+						dotExps.add(jsonArg);	// json
+						updateExpressionBelonging(expToJson, jsonArg, dotExps);
+						dotExps.add(keyArg);	// key
+						updateExpressionBelonging(expToJson, keyArg, dotExps);
+						dotExps.add(t);			// value
+						updateExpressionBelonging(expToJson, t, dotExps);
+						dotExps.add(null);		// json
+						Type jsonType = null;
+						if (jsonArg instanceof Variable) {
+							jsonType = ((Variable) jsonArg).getType();
+						} else if (jsonArg instanceof Term) {
+							jsonType = ((Term) jsonArg).getType();
+						}
+						String keyName = null;
+						if (keyArg instanceof Constant) {
+							keyName = ((Constant) keyArg).getSymbol().getName();
+						}
+						Type newJsonType = DataConstraintModel.typeJson;
+						if (jsonType == DataConstraintModel.typeJson && t.getType() != null && keyName != null) {
+							Map<String, Type> newMemberTypes = new HashMap<>();
+							newMemberTypes.put(keyName, t.getType());
+							newJsonType = jsonTypes.get(newMemberTypes);
+							if (newJsonType == null) {
+								// Create new json type;
+								newJsonType = createNewJsonType(newMemberTypes, DataConstraintModel.typeJson);
+							}
+						}
+						if (jsonType != newJsonType && newJsonType != null) {
+							// Update the type of the json argument and record the updated expression.
+							if (jsonArg instanceof Variable) {
+								((Variable) jsonArg).setType(newJsonType);
+								jsonType = newJsonType;
+							} else if (jsonArg instanceof Term) {
+								((Term) jsonArg).setType(newJsonType);
+								jsonType = newJsonType;
+							}
+							Map<Integer, Expression> updateExps = getUpdateSet(updateFromJson, dotExps);
+							updateExps.put(System.identityHashCode(jsonArg), jsonArg);
+						}
+						json.put(System.identityHashCode(dotExps), jsonType);
+					} else if (symbol.equals(DataConstraintModel.dotParam)) {
+						// If the root symbol of the term is dot (json.{param}).
+						List<Expression> dotExps = new ArrayList<>();
+						Expression jsonArg = t.getChildren().get(0);
+						Expression keyArg = t.getChildren().get(1);
+						dotExps.add(jsonArg);	// json (list/map)
+						updateExpressionBelonging(expToJson, jsonArg, dotExps);
+						dotExps.add(null);		// key
+						dotExps.add(t);			// value
+						updateExpressionBelonging(expToJson, t, dotExps);
+						dotExps.add(null);		// json
+						Type jsonType = null;
+						if (jsonArg instanceof Variable) {
+							jsonType = ((Variable) jsonArg).getType();
+						} else if (jsonArg instanceof Term) {
+							jsonType = ((Term) jsonArg).getType();
+						}
+						Type keyType = null;
+						if (keyArg instanceof Variable) {
+							keyType = ((Variable) keyArg).getType();
+						} else if (keyArg instanceof Term) {
+							keyType = ((Term) keyArg).getType();
+						}
+						Type newJsonType = null;
+						if (keyType == DataConstraintModel.typeInt) {
+							newJsonType = DataConstraintModel.typeList;
+						} else if (keyType == DataConstraintModel.typeString) {
+							newJsonType = DataConstraintModel.typeMap;
+						}
+						if (t.getType() != null) {
+							if ((jsonType == DataConstraintModel.typeList)) {
+								newJsonType = listTypes.get(t.getType());
+								if (newJsonType == null) {
+									// Create new list type;
+									newJsonType = createNewListType(t.getType(), DataConstraintModel.typeList);
+								}
+							} else if (jsonType == DataConstraintModel.typeMap) {
+								List<Type> keyValueTypes = Arrays.asList(new Type[] {DataConstraintModel.typeString, t.getType()});
+								newJsonType = mapTypes.get(keyValueTypes);
+								if (newJsonType == null) {
+									// Create new map type;
+									newJsonType = createNewMapType(keyValueTypes, DataConstraintModel.typeMap);
+								}
+							}
+						}
+						if (jsonType != newJsonType && newJsonType != null) {
+							// Update the type of the json argument and record the updated expression.
+							if (jsonArg instanceof Variable) {
+								((Variable) jsonArg).setType(newJsonType);
+								jsonType = newJsonType;
+							} else if (jsonArg instanceof Term) {
+								((Term) jsonArg).setType(newJsonType);
+								jsonType = newJsonType;
+							}
+							Map<Integer, Expression> updateExps = getUpdateSet(updateFromJson, dotExps);
+							updateExps.put(System.identityHashCode(jsonArg), jsonArg);
+						}
+						json.put(System.identityHashCode(dotExps), jsonType);
 					} else if (symbol.equals(DataConstraintModel.cond)) {
 						// If the root symbol of the term is if function.
 						Expression c1 = t.getChild(1);
@@ -929,7 +1104,8 @@ public class TypeInference {
 		
 		// 2. Propagate type information.
 		while (updateFromResource.size() > 0 || updateFromVariable.size() > 0 || updateFromMessage.size() > 0
-				|| updateFromConsOrSet.size() > 0 || updateFromTuple.size() > 0 || updateFromPair.size() > 0 || updateFromMap.size() > 0) {
+				|| updateFromConsOrSet.size() > 0 || updateFromTuple.size() > 0 || updateFromPair.size() > 0 
+				|| updateFromMap.size() > 0 || updateFromJson.size() > 0) {
 			if (updateFromResource.size() > 0) {
 				Set<Integer> resourceKeys = updateFromResource.keySet();
 				Integer resourceKey = resourceKeys.iterator().next();
@@ -943,6 +1119,7 @@ public class TypeInference {
 					updateTupleTypes(resExp, tuple, expToTuple, updateFromTuple);
 					updatePairTypes(resExp, pair, expToPair, updateFromPair);
 					updateMapTypes(resExp, map, expToMap, updateFromMap);
+					updateJsonTypes(resExp, json, expToJson, updateFromJson);
 				}
 			}
 			if (updateFromVariable.size() > 0) {
@@ -959,6 +1136,7 @@ public class TypeInference {
 					updateTupleTypes(var, tuple, expToTuple, updateFromTuple);
 					updatePairTypes(var, pair, expToPair, updateFromPair);
 					updateMapTypes(var, map, expToMap, updateFromMap);
+					updateJsonTypes(var, json, expToJson, updateFromJson);
 				}
 			}
 			if (updateFromMessage.size() > 0) {
@@ -974,6 +1152,7 @@ public class TypeInference {
 					updateTupleTypes(mesExp, tuple, expToTuple, updateFromTuple);
 					updatePairTypes(mesExp, pair, expToPair, updateFromPair);
 					updateMapTypes(mesExp, map, expToMap, updateFromMap);
+					updateJsonTypes(mesExp, json, expToJson, updateFromJson);
 				}
 			}
 			if (updateFromConsOrSet.size() > 0) {
@@ -990,6 +1169,7 @@ public class TypeInference {
 					updateTupleTypes(consExp, tuple, expToTuple, updateFromTuple);
 					updatePairTypes(consExp, pair, expToPair, updateFromPair);
 					updateMapTypes(consExp, map, expToMap, updateFromMap);
+					updateJsonTypes(consExp, json, expToJson, updateFromJson);
 				}
 			}
 			if (updateFromTuple.size() > 0) {
@@ -1006,6 +1186,7 @@ public class TypeInference {
 					updateTupleTypes(tupleExp, tuple, expToTuple, updateFromTuple);
 					updatePairTypes(tupleExp, pair, expToPair, updateFromPair);
 					updateMapTypes(tupleExp, map, expToMap, updateFromMap);
+					updateJsonTypes(tupleExp, json, expToJson, updateFromJson);
 				}
 			}
 			if (updateFromPair.size() > 0) {
@@ -1022,6 +1203,7 @@ public class TypeInference {
 					updateTupleTypes(pairExp, tuple, expToTuple, updateFromTuple);
 					updatePairTypes(pairExp, pair, expToPair, updateFromPair);
 					updateMapTypes(pairExp, map, expToMap, updateFromMap);
+					updateJsonTypes(pairExp, json, expToJson, updateFromJson);
 				}
 			}
 			if (updateFromMap.size() > 0) {
@@ -1038,6 +1220,24 @@ public class TypeInference {
 					updateTupleTypes(mapExp, tuple, expToTuple, updateFromTuple);
 					updatePairTypes(mapExp, pair, expToPair, updateFromPair);
 					updateMapTypes(mapExp, map, expToMap, updateFromMap);
+					updateJsonTypes(mapExp, json, expToJson, updateFromJson);
+				}
+			}
+			if (updateFromJson.size() > 0) {
+				Set<Integer> jsonKeys = updateFromJson.keySet();
+				Integer jsonKey = jsonKeys.iterator().next();
+				Map<Integer, Expression> jsonValue = updateFromJson.get(jsonKey);
+				updateFromJson.remove(jsonKey);
+				for (int i : jsonValue.keySet()) {
+					Expression jsonExp = jsonValue.get(i);
+					updateResourceTypes(jsonExp, resources, expToResource, updateFromResource);
+					updateVaribleTypes(jsonExp, variables, expToVariable, updateFromVariable);
+					updateMessageTypes(jsonExp, messages, expToMessage, updateFromMessage);
+					updateConsOrSetTypes(jsonExp, consOrSet, expToConsOrSet, updateFromConsOrSet);
+					updateTupleTypes(jsonExp, tuple, expToTuple, updateFromTuple);
+					updatePairTypes(jsonExp, pair, expToPair, updateFromPair);
+					updateMapTypes(jsonExp, map, expToMap, updateFromMap);
+					updateJsonTypes(jsonExp, json, expToJson, updateFromJson);
 				}
 			}
 		}
@@ -1060,12 +1260,12 @@ public class TypeInference {
 			Map<Integer, List<Expression>> expToResource, Map<Integer, Map<Integer, Expression>> updateFromResource) {
 		List<Expression> sameResource = expToResource.get(System.identityHashCode(exp));
 		if (sameResource == null) return;
-		for (ResourcePath id : resources.keySet()) {
-			if (resources.get(id) == sameResource) {
-				Type resType = id.getResourceStateType();
+		for (ResourcePath res : resources.keySet()) {
+			if (resources.get(res) == sameResource) {
+				Type resType = res.getResourceStateType();
 				Type newResType = getExpTypeIfUpdatable(resType, exp);
 				if (newResType != null) {
-					id.setResourceStateType(newResType);
+					res.setResourceStateType(newResType);
 					Map<Integer, Expression> updateExps = getUpdateSet(updateFromResource, sameResource);
 					for (Expression resExp : sameResource) {
 						if (resExp != exp) {
@@ -1167,6 +1367,7 @@ public class TypeInference {
 			int idx = consOrSetComponentGroup.indexOf(exp);
 			switch (idx) {
 			case 0:
+				// exp is a list itself.
 				if (!(exp instanceof Term)) break;
 				Type listType = consOrSet.get(System.identityHashCode(consOrSetComponentGroup));
 				Type expType = getExpTypeIfUpdatable(listType, exp);
@@ -1191,6 +1392,7 @@ public class TypeInference {
 				}
 				break;
 			case 1:
+				// exp is a list's component.
 				listType = consOrSet.get(System.identityHashCode(consOrSetComponentGroup));
 				Type compType = listComponentTypes.get(listType);
 				Type newCompType = getExpTypeIfUpdatable(compType, exp);
@@ -1216,6 +1418,7 @@ public class TypeInference {
 				}
 				break;
 			case 2:
+				// exp is a list itself.
 				listType = consOrSet.get(System.identityHashCode(consOrSetComponentGroup));
 				expType = getExpTypeIfUpdatable(listType, exp);
 				if (expType != null) {
@@ -1245,6 +1448,7 @@ public class TypeInference {
 		for (List<Expression> tupleComponentGroup: tupleComponentGroups) {
 			int idx = tupleComponentGroup.indexOf(exp);
 			if (idx == 0) {
+				// exp is a tuple itself.
 				Type tupleType = tuple.get(System.identityHashCode(tupleComponentGroup));
 				Type newTupleType = getExpTypeIfUpdatable(tupleType, exp);
 				if (newTupleType != null) {
@@ -1312,6 +1516,7 @@ public class TypeInference {
 					}
 				}
 			} else {
+				// exp is a tuple's component.
 				Type tupleType = tuple.get(System.identityHashCode(tupleComponentGroup));
 				List<Type> componentTypes = tupleComponentTypes.get(tupleType);
 				boolean updated = false;
@@ -1382,6 +1587,7 @@ public class TypeInference {
 		for (List<Expression> pairComponentGroup: pairComponentGroups) {
 			int idx = pairComponentGroup.indexOf(exp);
 			if (idx == 0) {
+				// exp is a pair itself.
 				Type pairType = pair.get(System.identityHashCode(pairComponentGroup));
 				Type newPairType = getExpTypeIfUpdatable(pairType, exp);
 				if (newPairType != null) {
@@ -1405,6 +1611,7 @@ public class TypeInference {
 					}
 				}
 			} else {
+				// exp is a pair's component.
 				Type pairType = pair.get(System.identityHashCode(pairComponentGroup));
 				Type compType = pairComponentTypes.get(pairType);
 				Type newCompType = getExpTypeIfUpdatable(compType, exp);
@@ -1435,6 +1642,7 @@ public class TypeInference {
 		for (List<Expression> mapComponentGroup: mapComponentGroups) {
 			int idx = mapComponentGroup.indexOf(exp);
 			if (idx == 0 || idx == 3) {
+				// exp is a map itself.
 				Type mapType = map.get(System.identityHashCode(mapComponentGroup));
 				Type newMapType = getExpTypeIfUpdatable(mapType, exp);
 				if (newMapType != null) {
@@ -1478,6 +1686,7 @@ public class TypeInference {
 					}
 				}
 			} else {
+				// exp is a map's key or value.
 				Type mapType = map.get(System.identityHashCode(mapComponentGroup));
 				List<Type> componentTypes = mapComponentTypes.get(mapType);
 				Type compType = componentTypes.get(idx - 1);
@@ -1511,6 +1720,116 @@ public class TypeInference {
 						}					
 					}
 					map.put(System.identityHashCode(mapComponentGroup), newMapType);
+				}
+			}
+		}
+	}
+	
+	
+	private static void updateJsonTypes(Expression exp, Map<Integer, Type> json,
+			Map<Integer, Set<List<Expression>>> expToJson, Map<Integer, Map<Integer, Expression>> updateFromJson) {
+		Set<List<Expression>> jsonMemberGroups = expToJson.get(System.identityHashCode(exp));
+		if (jsonMemberGroups == null) return;
+		for (List<Expression> jsonMemberGroup: jsonMemberGroups) {
+			int idx = jsonMemberGroup.indexOf(exp);
+			if (idx == 3) {
+				// exp is a json argument (0:t = addMember(3:json, 1:key, 2:value)).
+				Type jsonType = json.get(System.identityHashCode(jsonMemberGroup));
+				Map<String, Type> memberTypes = new HashMap<>(jsonMemberTypes.get(jsonType));
+				Map<String, Type> argMemberTypes = new HashMap<>(memberTypes);
+				String keyName = null;
+				Type valueType = null;
+				if (jsonMemberGroup.get(1) instanceof Constant) {
+					keyName = ((Constant) jsonMemberGroup.get(1)).getSymbol().getName();
+					valueType = ((Constant) jsonMemberGroup.get(1)).getType();
+					argMemberTypes.remove(keyName);
+				}
+				Type jsonArgType = jsonTypes.get(argMemberTypes);
+				Type newJsonArgType = getExpTypeIfUpdatable(jsonArgType, exp);
+				if (newJsonArgType != null && keyName != null) {
+					// Propagate an update of a json arg's type to its container's (json's) type.
+					argMemberTypes = ((JsonType) newJsonArgType).getMemberTypes();
+					argMemberTypes.put(keyName, valueType);
+					memberTypes.putAll(argMemberTypes);
+					Type newJsonType = jsonTypes.get(memberTypes);
+					if (newJsonType == null) {
+						// Create new json type.
+						newJsonType = createNewJsonType(memberTypes, jsonType);
+					}
+					// Update the type of the json term and record the updated expression.
+					Map<Integer, Expression> updateExps = getUpdateSet(updateFromJson, jsonMemberGroup);
+					Expression jsonExp = jsonMemberGroup.get(0);
+					if (jsonExp instanceof Variable) {
+						((Variable) jsonExp).setType(newJsonType);
+						updateExps.put(System.identityHashCode(jsonExp), jsonExp);
+					} else if (jsonExp instanceof Term) {
+						((Term) jsonExp).setType(newJsonType);
+						updateExps.put(System.identityHashCode(jsonExp), jsonExp);
+					}
+					json.put(System.identityHashCode(jsonMemberGroup), newJsonType);
+				}
+			} else if (idx == 2) {
+				// exp is a value (0:t = addMember(3:json, 1:key, 2:value) or 2:value = dot(0:list/map, 1:key)).
+				Type jsonType = json.get(System.identityHashCode(jsonMemberGroup));
+				Type newJsonType = null;
+				if (exp instanceof Term && ((Term) exp).getSymbol().equals(DataConstraintModel.dotParam)) {
+					if (DataConstraintModel.typeList.isAncestorOf(jsonType)) {
+						Type elementType = listComponentTypes.get(jsonType);
+						Type newElementType = getExpTypeIfUpdatable(elementType, exp);
+						if (newElementType != null) {
+							// Propagate an update of a member's type to its container's (json's) type.
+							newJsonType = listTypes.get(newElementType);
+							if (newJsonType == null) {
+								// Create new json type.
+								newJsonType = createNewListType(newElementType, jsonType);
+							}
+						}
+					} else if (DataConstraintModel.typeMap.isAncestorOf(jsonType)) {
+						List<Type> keyValueTypes = mapComponentTypes.get(jsonType);
+						Type newValueType = getExpTypeIfUpdatable(keyValueTypes.get(1), exp);
+						if (newValueType != null) {
+							// Propagate an update of a member's type to its container's (json's) type.
+							List<Type> newKeyValueTypes = Arrays.asList(new Type[] {DataConstraintModel.typeString, newValueType});
+							newJsonType = mapTypes.get(newKeyValueTypes);
+							if (newJsonType == null) {
+								// Create new json type.
+								newJsonType = createNewMapType(newKeyValueTypes, jsonType);
+							}
+						}
+					}
+				} else {
+					Map<String, Type> memberTypes = jsonMemberTypes.get(jsonType);
+					String keyName = null;
+					if (jsonMemberGroup.get(1) instanceof Constant) {
+						keyName = ((Constant) jsonMemberGroup.get(1)).getSymbol().getName();
+					}
+					if (memberTypes != null) {
+						Type memberType = memberTypes.get(keyName);
+						Type newMemberType = getExpTypeIfUpdatable(memberType, exp);
+						if (newMemberType != null && keyName != null) {
+							// Propagate an update of a member's type to its container's (json's) type.
+							Map<String, Type> newMemberTypes = new HashMap<>(memberTypes);
+							newMemberTypes.put(keyName, newMemberType);
+							newJsonType = jsonTypes.get(newMemberTypes);
+							if (newJsonType == null) {
+								// Create new json type.
+								newJsonType = createNewJsonType(newMemberTypes, jsonType);
+							}
+						}
+					}
+				}
+				if (newJsonType != null) {
+					// Update the type of the json term and record the updated expression.
+					Map<Integer, Expression> updateExps = getUpdateSet(updateFromJson, jsonMemberGroup);
+					Expression jsonExp = jsonMemberGroup.get(0);
+					if (jsonExp instanceof Variable) {
+						((Variable) jsonExp).setType(newJsonType);
+						updateExps.put(System.identityHashCode(jsonExp), jsonExp);
+					} else if (jsonExp instanceof Term) {
+						((Term) jsonExp).setType(newJsonType);
+						updateExps.put(System.identityHashCode(jsonExp), jsonExp);
+					}
+					json.put(System.identityHashCode(jsonMemberGroup), newJsonType);
 				}
 			}
 		}
@@ -1598,9 +1917,39 @@ public class TypeInference {
 		return newMapType;
 	}
 
-	private static List<Type> getChildrenTypes(Type parentType, Set<Type> componentTypes) {
+	private static JsonType createNewJsonType(Map<String, Type> memberTypes, Type parentJsonType) {
+		String implTypeName = "HashMap<>";
+		String interfaceTypeName = "Map<String, Object>";
+		List<Type> childrenTypes = getChildrenTypes(parentJsonType, jsonMemberTypes.keySet());
+		JsonType newJsonType = new JsonType("Json", implTypeName, interfaceTypeName, parentJsonType);
+		for (String key: memberTypes.keySet()) {
+			newJsonType.addMemberType(key, memberTypes.get(key));
+		}
+		jsonTypes.put(memberTypes, newJsonType);
+		jsonMemberTypes.put(newJsonType, memberTypes);
+		for (Type childType : childrenTypes) {
+			if (compareTypes(childType, newJsonType)) {
+				if (newJsonType.getParentTypes().contains(parentJsonType)) {
+					newJsonType.replaceParentType(parentJsonType, childType);
+				} else {
+					newJsonType.addParentType(childType);
+				}
+			} else if (compareTypes(newJsonType, childType)) {
+				childType.replaceParentType(parentJsonType, newJsonType);
+			}
+		}
+		return newJsonType;
+	}
+
+	/**
+	 * Get children types of a given type from given set of types.
+	 * @param parentType a type
+	 * @param allTypes set of types
+	 * @return list of the children types
+	 */
+	private static List<Type> getChildrenTypes(Type parentType, Set<Type> allTypes) {
 		List<Type> childrenTypes = new ArrayList<>();
-		for (Type childType : componentTypes) {
+		for (Type childType : allTypes) {
 			if (childType.getParentTypes().contains(parentType)) {
 				childrenTypes.add(childType);
 			}
@@ -1626,8 +1975,7 @@ public class TypeInference {
 		return type.getInterfaceTypeName();
 	}
 
-	private static <T extends Expression, U extends Collection<T>> Map<Integer, T> getUpdateSet(
-			Map<Integer, Map<Integer, T>> updateSets, U keySet) {
+	private static <T extends Expression, U extends Collection<T>> Map<Integer, T> getUpdateSet(Map<Integer, Map<Integer, T>> updateSets, U keySet) {
 		Map<Integer, T> updatedExps = updateSets.get(System.identityHashCode(keySet));
 		if (updatedExps == null) {
 			updatedExps = new HashMap<>();
@@ -1683,6 +2031,7 @@ public class TypeInference {
 				for (int i = 0; i < originalCompTypes.size(); i++) {
 					if (originalCompTypes.get(i) != null) {
 						if (DataConstraintModel.typeTuple.isAncestorOf(originalCompTypes.get(i))) {
+							// Unfold the nested tuple's types.
 							Type tupleType = originalCompTypes.remove(i); 
 							for (Type t: tupleComponentTypes.get(tupleType)) {
 								originalCompTypes.add(t);
@@ -1690,6 +2039,7 @@ public class TypeInference {
 						}
 						if (newCompTypes.size() - 1 < i) return false;
 						if (newCompTypes.get(i) != null && DataConstraintModel.typeTuple.isAncestorOf(newCompTypes.get(i))) {
+							// Unfold the nested tuple's types.
 							Type tupleType = newCompTypes.remove(i); 
 							for (Type t: tupleComponentTypes.get(tupleType)) {
 								newCompTypes.add(t);
@@ -1705,6 +2055,19 @@ public class TypeInference {
 				Type originalCompType = listComponentTypes.get(originalType);
 				Type newCompType = listComponentTypes.get(newType);
 				if (originalCompType != null && (newCompType == null || !originalCompType.isAncestorOf(newCompType))) return false;
+				return true;
+			}
+			if (DataConstraintModel.typeJson.isAncestorOf(originalType) && DataConstraintModel.typeJson.isAncestorOf(newType)) {
+				Map<String, Type> originalMemberTypes = jsonMemberTypes.get(originalType);
+				Map<String, Type> newMemberTypes = jsonMemberTypes.get(newType);
+				if (originalMemberTypes == null) return true;
+				if (originalMemberTypes.keySet().size() < newMemberTypes.keySet().size() 
+						&& newMemberTypes.keySet().containsAll(originalMemberTypes.keySet())) return true;
+				if (originalMemberTypes.keySet().size() > newMemberTypes.keySet().size()) return false;
+				if (!newMemberTypes.keySet().containsAll(originalMemberTypes.keySet())) return false;
+				for (String key: originalMemberTypes.keySet()) {
+					if (!originalMemberTypes.get(key).isAncestorOf(newMemberTypes.get(key))) return false;
+				}
 				return true;
 			}
 		}

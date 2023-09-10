@@ -17,9 +17,11 @@ public interface ILanguageSpecific {
 	TypeDeclaration newTypeDeclaration(String typeName);
 	VariableDeclaration newVariableDeclaration(Type type, String varName);
 	MethodDeclaration newMethodDeclaration(String methodName, Type returnType);
-	MethodDeclaration newMethodDeclaration(String methodName, boolean isConstructor, Type returnType, ArrayList<VariableDeclaration> parameters);
+	MethodDeclaration newMethodDeclaration(String methodName, boolean isConstructor, Type returnType, List<VariableDeclaration> parameters);
 	FieldDeclaration newFieldDeclaration(Type fieldType, String fieldName);
 	FieldDeclaration newFieldDeclaration(Type fieldType, String fieldName, String fieldInitializer);
+	Type newListType(String compTypeName);
+	Type newMapType(Type keyType, String compTypeName);
 	Type newTupleType(List<Type> compTypes);
 	String getVariableDeclaration(String typeName, String varName);
 	String getFieldInitializer(Type type, Expression initialValue);
@@ -31,6 +33,7 @@ public interface ILanguageSpecific {
 	String getConstructorInvocation(String componentName, List<String> parameters);
 	String getReturnStatement(String returnValue);
 	String toComponentName(String name);
+	String toVariableName(String name);
 	String getMainComponentName();
 	String getTupleGet(String tupleExp, int idx, int length);
 	String getDecomposedTuple(String tupleExp, VariableDeclaration tupleVar, List<VariableDeclaration> vars);

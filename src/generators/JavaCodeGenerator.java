@@ -111,13 +111,13 @@ public class JavaCodeGenerator {
 				}
 			}
 			Set<ResourcePath> refs = new HashSet<>();
-			for (Channel cg : model.getChannels()) {
-				DataTransferChannel c = (DataTransferChannel) cg;
+			for (Channel ch : model.getChannels()) {
+				DataTransferChannel c = (DataTransferChannel) ch;
 				if (c.getInputResources().contains(rn.getResource())) {
-					for (ResourcePath id: c.getReferenceResources()) {
-						if (!refs.contains(id) && !depends.contains(id)) {
-							refs.add(id);
-							String refResName = id.getResourceName();
+					for (ResourcePath res: c.getReferenceResources()) {
+						if (!refs.contains(res) && !depends.contains(res)) {
+							refs.add(res);
+							String refResName = res.getResourceName();
 							fieldInitializer += refResName.toLowerCase() + ",";
 							f = true;
 						}
@@ -128,12 +128,12 @@ public class JavaCodeGenerator {
 			fieldInitializer += ")";
 			FieldDeclaration field = new FieldDeclaration(new Type(resourceName, resourceName), rn.getResource().getResourceName());
 			mainType.addField(field);
-			Block manConstructorBody = mainConstructor.getBody();
-			if (manConstructorBody == null) {
-				manConstructorBody = new Block();
-				mainConstructor.setBody(manConstructorBody);
+			Block mainConstructorBody = mainConstructor.getBody();
+			if (mainConstructorBody == null) {
+				mainConstructorBody = new Block();
+				mainConstructor.setBody(mainConstructorBody);
 			}
-			manConstructorBody.addStatement(rn.getResource().getResourceName() + " = " + fieldInitializer + ";");
+			mainConstructorBody.addStatement(rn.getResource().getResourceName() + " = " + fieldInitializer + ";");
 			
 			// Declare a constructor, fields and update methods in the type of each resource.
 			MethodDeclaration constructor = new MethodDeclaration(resourceName, true);
@@ -176,17 +176,17 @@ public class JavaCodeGenerator {
 			}
 			// Declare a field to refer to the reference resource.
 			refs = new HashSet<>();
-			for (Channel cg : model.getChannels()) {
-				DataTransferChannel c = (DataTransferChannel) cg;
+			for (Channel ch : model.getChannels()) {
+				DataTransferChannel c = (DataTransferChannel) ch;
 				if (c.getInputResources().contains(rn.getResource())) {
-					for (ResourcePath id: c.getReferenceResources()) {
-						if (!refs.contains(id) && !depends.contains(id)) {
-							refs.add(id);
-							String refResName = id.getResourceName();
+					for (ResourcePath res: c.getReferenceResources()) {
+						if (!refs.contains(res) && !depends.contains(res)) {
+							refs.add(res);
+							String refResName = res.getResourceName();
 							refResName = refResName.substring(0, 1).toUpperCase() + refResName.substring(1);
-							type.addField(new FieldDeclaration(new Type(refResName, refResName), id.getResourceName()));
-							constructor.addParameter(new VariableDeclaration(new Type(refResName, refResName), id.getResourceName()));						
-							block.addStatement("this." + id.getResourceName() + " = " + id.getResourceName() + ";");
+							type.addField(new FieldDeclaration(new Type(refResName, refResName), res.getResourceName()));
+							constructor.addParameter(new VariableDeclaration(new Type(refResName, refResName), res.getResourceName()));						
+							block.addStatement("this." + res.getResourceName() + " = " + res.getResourceName() + ";");
 						}
 					}
 				}
@@ -196,11 +196,11 @@ public class JavaCodeGenerator {
 				type.addMethod(constructor);
 			
 			// Declare input methods in resources and the main type.
-			for (Channel cg : model.getIOChannels()) {
-				for (ChannelMember cm : ((DataTransferChannel) cg).getOutputChannelMembers()) {
+			for (Channel ch : model.getIOChannels()) {
+				for (ChannelMember cm : ((DataTransferChannel) ch).getOutputChannelMembers()) {
 					if (cm.getResource().equals(rn.getResource())) {
 						Expression message = cm.getStateTransition().getMessageExpression();
-						if (message.getClass() == Term.class) {
+						if (message instanceof Term) {
 							ArrayList<VariableDeclaration> params = new ArrayList<>();
 							for (Variable var: message.getVariables().values()) {
 								params.add(new VariableDeclaration(var.getType(), var.getName()));
@@ -226,7 +226,7 @@ public class JavaCodeGenerator {
 									}
 								}
 							}
-						} else if (message.getClass() == Variable.class) {
+						} else if (message instanceof Variable) {
 							MethodDeclaration input = new MethodDeclaration(
 									((Variable) cm.getStateTransition().getMessageExpression()).getName(),
 									false, typeVoid, null);
@@ -244,8 +244,8 @@ public class JavaCodeGenerator {
 			
 			// Declare the field to store the state in the type of each resource.
 			if (((StoreAttribute) rn.getAttribute()).isStored()) {
-				ResourcePath resId = rn.getResource();
-				type.addField(new FieldDeclaration(resId.getResourceStateType(), "value", getInitializer(resId)));
+				ResourcePath res = rn.getResource();
+				type.addField(new FieldDeclaration(res.getResourceStateType(), "value", getInitializer(res)));
 			}
 			
 			// Declare the getter method to obtain the state in the type of each resource.

@@ -149,11 +149,11 @@ public class JerseyCodeGenerator {
 //			}
 			
 			// Declare input methods in resources.
-			for (Channel cg : model.getIOChannels()) {
-				for (ChannelMember cm : ((DataTransferChannel) cg).getOutputChannelMembers()) {
+			for (Channel ch : model.getIOChannels()) {
+				for (ChannelMember cm : ((DataTransferChannel) ch).getOutputChannelMembers()) {
 					if (cm.getResource().equals(rn.getResource())) {
 						Expression message = cm.getStateTransition().getMessageExpression();
-						if (message.getClass() == Term.class) {
+						if (message instanceof Term) {
 							ArrayList<VariableDeclaration> params = new ArrayList<>();
 							for (Variable var: message.getVariables().values()) {
 								String paramName = var.getName();
@@ -170,7 +170,7 @@ public class JerseyCodeGenerator {
 								input.addAnnotation(new Annotation("POST"));
 							}
 							type.addMethod(input);
-						} else if (message.getClass() == Variable.class) {
+						} else if (message instanceof Variable) {
 							MethodDeclaration input = new MethodDeclaration(
 									((Variable) cm.getStateTransition().getMessageExpression()).getName(),
 									false, typeVoid, null);
@@ -187,8 +187,8 @@ public class JerseyCodeGenerator {
 			
 			// Declare the field to store the state in the type of each resource.
 			if (((StoreAttribute) rn.getAttribute()).isStored()) {
-				ResourcePath resId = rn.getResource();
-				type.addField(new FieldDeclaration(resId.getResourceStateType(), "value", getInitializer(resId)));
+				ResourcePath res = rn.getResource();
+				type.addField(new FieldDeclaration(res.getResourceStateType(), "value", getInitializer(res)));
 			}
 			
 			// Declare the getter method to obtain the state in the type of each resource.

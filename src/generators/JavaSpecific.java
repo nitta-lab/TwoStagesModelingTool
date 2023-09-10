@@ -46,7 +46,7 @@ public class JavaSpecific implements ILanguageSpecific {
 	}
 
 	@Override
-	public MethodDeclaration newMethodDeclaration(String methodName, boolean isConstructor, Type returnType, ArrayList<VariableDeclaration> parameters) {
+	public MethodDeclaration newMethodDeclaration(String methodName, boolean isConstructor, Type returnType, List<VariableDeclaration> parameters) {
 		if (returnType == null) {
 			returnType = typeVoid;
 		}
@@ -61,6 +61,16 @@ public class JavaSpecific implements ILanguageSpecific {
 	@Override
 	public FieldDeclaration newFieldDeclaration(Type fieldType, String fieldName, String fieldInitializer) {
 		return new FieldDeclaration(fieldType, fieldName, fieldInitializer);
+	}
+	
+	@Override
+	public Type newListType(String compTypeName) {
+		return new Type("List", "ArrayList<>", "List<" + compTypeName + ">", DataConstraintModel.typeList);		
+	}
+	
+	@Override
+	public Type newMapType(Type keyType, String valueTypeName) {
+		return new Type("Map", "HashMap<>", "Map<" + keyType.getImplementationTypeName() + ", " + valueTypeName + ">", DataConstraintModel.typeMap);		
 	}
 	
 	@Override
@@ -166,6 +176,11 @@ public class JavaSpecific implements ILanguageSpecific {
 	@Override
 	public String toComponentName(String name) {
 		return name.substring(0, 1).toUpperCase() + name.substring(1);
+	}
+
+	@Override
+	public String toVariableName(String name) {
+		return name.substring(0, 1).toLowerCase() + name.substring(1);
 	}
 
 	@Override

@@ -38,6 +38,7 @@ import parser.exceptions.ExpectedLeftCurlyBracket;
 import parser.exceptions.ExpectedRHSExpression;
 import parser.exceptions.ExpectedRightBracket;
 import parser.exceptions.ExpectedStateTransition;
+import parser.exceptions.WrongJsonExpression;
 import parser.exceptions.WrongLHSExpression;
 import parser.exceptions.WrongRHSExpression;
 
@@ -48,6 +49,8 @@ import parser.exceptions.WrongRHSExpression;
 public class DataFlowModelingStage extends Stage {
 	public int PORT_DIAMETER = 8;
 	public int PORT_RADIUS = PORT_DIAMETER / 2;
+	
+	private boolean bReflectingArchitectureModel = false;
 	
 	/*************************************************************
 	 * [ *constructor]
@@ -173,6 +176,7 @@ public class DataFlowModelingStage extends Stage {
 	 * @return constructed mxGraph
 	 */
 	public mxGraph constructGraph(mxGraph graph, DataTransferModel model) {
+		bReflectingArchitectureModel = true;
 		mxCell root = (mxCell) graph.getDefaultParent();
 		mxCell nodeLayer = (mxCell) root.getChildAt(NODE_LAYER);
 		mxCell dataFlowLayer = (mxCell) root.getChildAt(DATA_FLOW_LAYER);
@@ -254,6 +258,7 @@ public class DataFlowModelingStage extends Stage {
 			graph.getModel().endUpdate();
 		}
 
+		bReflectingArchitectureModel = false;
 		return graph;
 	}
 
@@ -351,6 +356,7 @@ public class DataFlowModelingStage extends Stage {
 	}
 
 	public boolean connectEdge(mxCell edge, mxCell src, mxCell dst) {
+		if (bReflectingArchitectureModel) return false;
 		DataTransferModel model = getModel();
 		Channel srcCh = model.getChannel((String) src.getValue());
 		if (srcCh == null) {
@@ -449,7 +455,7 @@ public class DataFlowModelingStage extends Stage {
 			}
 		} catch (ExpectedRightBracket | ExpectedChannel | ExpectedChannelName | ExpectedLeftCurlyBracket
 				| ExpectedInOrOutOrRefKeyword | ExpectedStateTransition | ExpectedEquals | ExpectedRHSExpression
-				| WrongLHSExpression | WrongRHSExpression | ExpectedAssignment e) {
+				| WrongLHSExpression | WrongRHSExpression | ExpectedAssignment | WrongJsonExpression e) {
 			e.printStackTrace();
 		}
 	}

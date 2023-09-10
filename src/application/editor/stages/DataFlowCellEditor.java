@@ -33,6 +33,7 @@ import models.visualModel.FormulaChannel;
 import parser.Parser;
 import parser.Parser.TokenStream;
 import parser.exceptions.ExpectedRightBracket;
+import parser.exceptions.WrongJsonExpression;
 
 /*************************************************************
  * 
@@ -120,7 +121,7 @@ public class DataFlowCellEditor  extends FlowCellEditor {
 						Expression exp = parser.parseTerm(stream, stage.getModel());
 						((FormulaChannel) ch).setFormula(formula);
 						((FormulaChannel) ch).setFormulaTerm(exp);
-					} catch (ExpectedRightBracket e) {
+					} catch (ExpectedRightBracket | WrongJsonExpression e) {
 						e.printStackTrace();
 					}
 				}
