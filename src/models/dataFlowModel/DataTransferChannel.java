@@ -35,7 +35,7 @@ public class DataTransferChannel extends Channel {
 		this.inputChannelMembers = inputChannelMembers;
 	}
 	
-	public void addInputChannelMember(ChannelMember inputChannelMember) {
+	private void addInputChannelMember(ChannelMember inputChannelMember) {
 		inputChannelMembers.add(inputChannelMember);
 	}
 	
@@ -47,7 +47,7 @@ public class DataTransferChannel extends Channel {
 		this.outputChannelMembers = outputChannelMembers;
 	}
 	
-	public void addOutputChannelMember(ChannelMember outputChannelMember) {
+	private void addOutputChannelMember(ChannelMember outputChannelMember) {
 		outputChannelMembers.add(outputChannelMember);
 	}
 	
@@ -59,7 +59,7 @@ public class DataTransferChannel extends Channel {
 		this.referenceChannelMembers = referenceChannelMembers;
 	}
 	
-	public void addReferenceChannelMember(ChannelMember referenceChannelMember) {
+	private void addReferenceChannelMember(ChannelMember referenceChannelMember) {
 		referenceChannelMembers.add(referenceChannelMember);
 	}
 		

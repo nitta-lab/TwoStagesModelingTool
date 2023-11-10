@@ -39,6 +39,7 @@ public interface ILanguageSpecific {
 	String getDecomposedTuple(String tupleExp, VariableDeclaration tupleVar, List<VariableDeclaration> vars);
 	String getAssignment();
 	String getStatementDelimiter();
+	String getStringDelimiter();
 	boolean isValueType(Type type);
 	boolean isVoidType(Type type);
 }

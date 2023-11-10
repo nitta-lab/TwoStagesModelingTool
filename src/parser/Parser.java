@@ -19,9 +19,11 @@ import models.dataConstraintModel.ResourcePath;
 import models.dataConstraintModel.StateTransition;
 import models.dataFlowModel.DataTransferModel;
 import models.dataFlowModel.DataTransferChannel;
+import parser.Parser.TokenStream;
 import parser.exceptions.ExpectedAssignment;
 import parser.exceptions.ExpectedChannel;
 import parser.exceptions.ExpectedChannelName;
+import parser.exceptions.ExpectedColon;
 import parser.exceptions.ExpectedEquals;
 import parser.exceptions.ExpectedInOrOutOrRefKeyword;
 import parser.exceptions.ExpectedLeftCurlyBracket;
@@ -45,6 +47,10 @@ public class Parser {
 	public static final String RIGHT_BRACKET = ")";
 	public static final String LEFT_BRACKET_REGX = "\\(";
 	public static final String RIGHT_BRACKET_REGX = "\\)";
+	public static final String LEFT_SQUARE_BRACKET = "[";
+	public static final String RIGHT_SQUARE_BRACKET = "]";
+	public static final String LEFT_SQUARE_BRACKET_REGX = "\\[";
+	public static final String RIGHT_SQUARE_BRACKET_REGX = "\\]";
 	public static final String ADD = "+";
 	public static final String MUL = "*";
 	public static final String SUB = "-";
@@ -83,13 +89,13 @@ public class Parser {
 	
 	public DataTransferModel doParse() 
 			throws ExpectedRightBracket, ExpectedChannel, ExpectedChannelName, ExpectedLeftCurlyBracket, ExpectedInOrOutOrRefKeyword, 
-			ExpectedStateTransition, ExpectedEquals, ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, ExpectedAssignment, WrongJsonExpression {
+			ExpectedStateTransition, ExpectedEquals, ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, ExpectedAssignment, WrongJsonExpression, ExpectedColon {
 		return parseDataFlowModel();
 	}
 
 	public DataTransferModel parseDataFlowModel() 
 			throws ExpectedRightBracket, ExpectedChannel, ExpectedChannelName, ExpectedLeftCurlyBracket, ExpectedInOrOutOrRefKeyword, 
-			ExpectedStateTransition, ExpectedEquals, ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, ExpectedAssignment, WrongJsonExpression {
+			ExpectedStateTransition, ExpectedEquals, ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, ExpectedAssignment, WrongJsonExpression, ExpectedColon {
 		DataTransferModel model = new DataTransferModel();
 		DataTransferChannel channel;
 		while ((channel = parseChannel(model)) != null) {
@@ -107,7 +113,7 @@ public class Parser {
 			ExpectedLeftCurlyBracket, ExpectedRightBracket, ExpectedAssignment,
 			ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, 
 			ExpectedChannel, ExpectedChannelName, ExpectedInOrOutOrRefKeyword, 
-			ExpectedStateTransition, ExpectedEquals, WrongJsonExpression
+			ExpectedStateTransition, ExpectedEquals, WrongJsonExpression, ExpectedColon
 	{
 		if (!stream.hasNext()) return null;
 		if (stream.checkNext().equals(RIGHT_CURLY_BRACKET)) return null;
@@ -157,7 +163,7 @@ public class Parser {
 
 	public void parseInit(DataTransferModel model) 
 			throws 
-			ExpectedLeftCurlyBracket, ExpectedAssignment, ExpectedRHSExpression, WrongRHSExpression, ExpectedRightBracket, WrongJsonExpression 
+			ExpectedLeftCurlyBracket, ExpectedAssignment, ExpectedRHSExpression, WrongRHSExpression, ExpectedRightBracket, WrongJsonExpression, ExpectedColon 
 	{
 		String leftBracket = stream.next();
 		if (!leftBracket.equals(LEFT_CURLY_BRACKET)) throw new ExpectedLeftCurlyBracket(stream.getLine());
@@ -191,7 +197,7 @@ public class Parser {
 	public ChannelMember parseChannelMember(DataTransferModel model, final String inOrOutOrRef) 
 			throws 
 			ExpectedRightBracket, ExpectedStateTransition, ExpectedEquals, 
-			ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, WrongJsonExpression
+			ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, WrongJsonExpression, ExpectedColon
 	{
 		if (!stream.hasNext()) throw new ExpectedStateTransition(stream.getLine());
 		Expression leftTerm = parseTerm(stream, model);
@@ -245,7 +251,7 @@ public class Parser {
 	}
 
 	public Expression parseTerm(TokenStream stream, DataTransferModel model) 
-			throws ExpectedRightBracket, WrongJsonExpression
+			throws ExpectedRightBracket, WrongJsonExpression, ExpectedColon
 	{
 		ArrayList<Expression> expressions = new ArrayList<>();
 		ArrayList<Symbol> operators = new ArrayList<>();
@@ -256,6 +262,16 @@ public class Parser {
 				Expression exp = parseTerm(stream, model);
 				String rightBracket = stream.next();
 				if (!rightBracket.equals(RIGHT_BRACKET)) throw new ExpectedRightBracket(stream.getLine());
+				expressions.add(exp);
+			} else if (leftBracketOrMinus.equals(LEFT_CURLY_BRACKET)) {
+				Expression exp = parseJsonTerm(stream, model);
+				String rightBracket = stream.next();
+				if (!rightBracket.equals(RIGHT_CURLY_BRACKET)) throw new ExpectedRightBracket(stream.getLine());
+				expressions.add(exp);
+			} else if (leftBracketOrMinus.equals(LEFT_SQUARE_BRACKET)) {
+				Expression exp = parseListTerm(stream, model);
+				String rightBracket = stream.next();
+				if (!rightBracket.equals(RIGHT_SQUARE_BRACKET)) throw new ExpectedRightBracket(stream.getLine());
 				expressions.add(exp);
 			} else {
 				Symbol minus = null;
@@ -411,6 +427,42 @@ public class Parser {
 		return firstMonomial;
 	}
 
+	private Expression parseJsonTerm(TokenStream stream, DataTransferModel model) throws ExpectedRightBracket, WrongJsonExpression, ExpectedColon {
+		Term jsonTerm = new Constant(DataConstraintModel.nil);
+		jsonTerm.setType(DataConstraintModel.typeJson);
+		while (stream.checkNext() != null && !stream.checkNext().equals(RIGHT_CURLY_BRACKET)) {
+			String key = stream.next();
+			Constant keyExp = new Constant(key);
+			keyExp.setType(DataConstraintModel.typeString);
+			if (stream.checkNext() == null || !stream.checkNext().equals(COLON)) throw new ExpectedColon(stream.getLine());
+			String colon = stream.next();
+			Expression value = parseTerm(stream, model);
+			Term nextTerm = new Term(DataConstraintModel.addMember);
+			nextTerm.addChild(jsonTerm);
+			nextTerm.addChild(keyExp);
+			nextTerm.addChild(value);
+			jsonTerm = nextTerm;
+			if (stream.checkNext() == null || !stream.checkNext().equals(COMMA)) break;
+			String comma = stream.next();
+		}
+		return jsonTerm;
+	}
+
+	private Expression parseListTerm(TokenStream stream2, DataTransferModel model) throws ExpectedRightBracket, WrongJsonExpression, ExpectedColon {
+		Term listTerm = new Constant(DataConstraintModel.nil);
+		listTerm.setType(DataConstraintModel.typeList);
+		while (stream.checkNext() != null && !stream.checkNext().equals(RIGHT_SQUARE_BRACKET)) {
+			Expression element = parseTerm(stream, model);
+			Term nextTerm = new Term(DataConstraintModel.cons);
+			nextTerm.addChild(element);
+			nextTerm.addChild(listTerm);
+			listTerm = nextTerm;
+			if (stream.checkNext() == null || !stream.checkNext().equals(COMMA)) break;
+			String comma = stream.next();
+		}
+		return listTerm;
+	}
+
 	private Variable parseVariable(TokenStream stream, DataTransferModel model, String symbolName) {
 		Variable var;
 		if (stream.checkNext() != null && stream.checkNext().equals(COLON)) {
@@ -473,31 +525,37 @@ public class Parser {
 																							splitBy(
 																									splitBy(
 																											splitBy(
-																													Arrays.asList(line.split("[ \t]")), 
-																													ADD,
-																													ADD_REGX),
-																											MUL,
-																											MUL_REGX),
-																									SUB,
-																									SUB_REGX),
-																							DIV,
-																							DIV_REGX),
-																					DOT,
-																					DOT_REGX),
-																			COMMA, 
-																			COMMA),
-																	COLON, 
-																	COLON),
-															LEFT_BRACKET, 
-															LEFT_BRACKET_REGX),
-													RIGHT_BRACKET,
-													RIGHT_BRACKET_REGX),
-											EQUALS,
-											EQUALS),
-									LEFT_CURLY_BRACKET,
-									LEFT_CURLY_BRACKET_REGX),
-							RIGHT_CURLY_BRACKET,
-							RIGHT_CURLY_BRACKET_REGX));
+																													splitBy(
+																															splitBy(
+																																	Arrays.asList(line.split("[ \t]")), 
+																																	ADD,
+																																	ADD_REGX),
+																															MUL,
+																															MUL_REGX),
+																													SUB,
+																													SUB_REGX),
+																											DIV,
+																											DIV_REGX),
+																									DOT,
+																									DOT_REGX),
+																							COMMA, 
+																							COMMA),
+																					COLON, 
+																					COLON),
+																			LEFT_BRACKET, 
+																			LEFT_BRACKET_REGX),
+																	RIGHT_BRACKET,
+																	RIGHT_BRACKET_REGX),
+															EQUALS,
+															EQUALS),
+													LEFT_CURLY_BRACKET,
+													LEFT_CURLY_BRACKET_REGX),
+											RIGHT_CURLY_BRACKET,
+											RIGHT_CURLY_BRACKET_REGX),
+									LEFT_SQUARE_BRACKET,
+									LEFT_SQUARE_BRACKET_REGX),
+							RIGHT_SQUARE_BRACKET,
+							RIGHT_SQUARE_BRACKET_REGX));
 		}
 
 		private ArrayList<String> splitBy(final List<String> tokens, final String delimiter, final String delimiterRegx) {

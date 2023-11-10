@@ -36,7 +36,7 @@ public class Constant extends Term {
 	
 	public String toImplementation(String[] sideEffects) {
 		if (symbol.isImplGenerative()) {
-			String exp =  symbol.generate(getType(), new String[] {}, new String[] {}, sideEffects);
+			String exp = symbol.generate(getType(), new String[] {}, new String[] {}, sideEffects);
 			return exp;
 		}
 		return symbol.getImplName();

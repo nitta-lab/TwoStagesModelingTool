@@ -32,6 +32,7 @@ import models.dataFlowModel.PushPullValue;
 import models.visualModel.FormulaChannel;
 import parser.Parser;
 import parser.Parser.TokenStream;
+import parser.exceptions.ExpectedColon;
 import parser.exceptions.ExpectedRightBracket;
 import parser.exceptions.WrongJsonExpression;
 
@@ -117,11 +118,12 @@ public class DataFlowCellEditor  extends FlowCellEditor {
 					String formula = formulaText.getText();
 					stream.addLine(formula.split(Parser.EQUALS)[1]);
 
+					
 					try {
 						Expression exp = parser.parseTerm(stream, stage.getModel());
 						((FormulaChannel) ch).setFormula(formula);
 						((FormulaChannel) ch).setFormulaTerm(exp);
-					} catch (ExpectedRightBracket | WrongJsonExpression e) {
+					} catch (ExpectedRightBracket | WrongJsonExpression | ExpectedColon e) {
 						e.printStackTrace();
 					}
 				}

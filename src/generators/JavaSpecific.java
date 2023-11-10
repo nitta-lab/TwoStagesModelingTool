@@ -199,6 +199,11 @@ public class JavaSpecific implements ILanguageSpecific {
 	}
 
 	@Override
+	public String getStringDelimiter() {
+		return "\"";
+	}
+
+	@Override
 	public String getTupleGet(String tupleExp, int idx, int length) {
 		Expression t = new Variable(tupleExp, DataConstraintModel.typeTuple);
 		for (int i = 0; i < idx; i++) {

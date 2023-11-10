@@ -50,6 +50,7 @@ public class DataConstraintModel {
 		public String generate(Type type, String[] children, String[] childrenSideEffects, String[] sideEffect) {
 			String compType = "";
 			if (type != null) {
+				String temp = "temp_nil";
 				String interfaceType = type.getInterfaceTypeName();
 				if (interfaceType.contains("<")) {
 					compType = interfaceType.substring(interfaceType.indexOf("<") + 1, interfaceType.lastIndexOf(">"));
@@ -58,7 +59,8 @@ public class DataConstraintModel {
 				if (implType.indexOf('<') >= 0) {
 					implType = implType.substring(0, implType.indexOf('<'));
 				}
-				return "new " + implType + "<" + compType + ">()";
+				sideEffect[0] = interfaceType + " " + temp + " = " + "new " + implType + "<" + compType + ">();\n";
+				return temp;
 			}			
 			return "new ArrayList<" + compType + ">()";
 		}
@@ -130,7 +132,6 @@ public class DataConstraintModel {
 	public static final Symbol left = new Symbol("left", 1, Symbol.Type.PREFIX, "getLeft", Symbol.Type.METHOD);
 	public static final Symbol right = new Symbol("right", 1, Symbol.Type.PREFIX, "getRight", Symbol.Type.METHOD);
 	public static final Symbol insert = new Symbol("insert", 3, Symbol.Type.PREFIX, "put", Symbol.Type.METHOD_WITH_SIDE_EFFECT);
-//	public static final Symbol lookup = new Symbol("lookup", 2, Symbol.Type.PREFIX, "get", Symbol.Type.METHOD);
 	public static final Symbol lookup = new Symbol("lookup", 2, Symbol.Type.PREFIX, new Symbol.IImplGenerator() {
 		final int count[] = {0};
 		@Override
@@ -142,14 +143,13 @@ public class DataConstraintModel {
 			impl += "\t" + temp + " = " + childrenImpl[0] + ".get(" + childrenImpl[1] + ");\n";
 			impl += "} else {\n";
 			impl += "\t" + temp + " = " + getDefaultValue(type) + ";\n";
-			impl += "}\n";
+			impl += "}";
 			sideEffect[0] = impl;
 			count[0]++;
 			return temp;
 		}
 	});
-	public static final Symbol json = new Symbol("json", 0, Symbol.Type.PREFIX, "new HashMap<>", Symbol.Type.METHOD);
-	public static final Symbol addMember = new Symbol("addMember", 3, Symbol.Type.PREFIX, "put", Symbol.Type.METHOD);
+	public static final Symbol addMember = new Symbol("addMember", 3, Symbol.Type.PREFIX, "put", Symbol.Type.METHOD_WITH_SIDE_EFFECT);
 	public static final Symbol dot = new Symbol(Parser.DOT, 2, Symbol.Type.INFIX, "get", Symbol.Type.METHOD);
 	public static final Symbol dotParam = new Symbol(Parser.DOT, 2, Symbol.Type.INFIX, "get", Symbol.Type.METHOD);
 	public static final Symbol pi = new Symbol("PI", 0, Symbol.Type.PREFIX, "Math.PI", Symbol.Type.PREFIX);
@@ -203,7 +203,6 @@ public class DataConstraintModel {
 		snd.setInverses(new Symbol[] {new LambdaAbstraction(new Variable("y"), new Term(tuple, new Expression[] {new Variable("x"), new Variable("y")}))});
 		insert.setSignature(new Type[] {typeMap, typeMap, null, null});
 		lookup.setSignature(new Type[] {null, typeMap, null});
-		json.setSignature(new Type[] {typeJson});
 		addMember.setSignature(new Type[] {typeJson, typeJson, typeString, null});
 		dot.setSignature(new Type[] {null, typeJson, typeString});
 		dotParam.setSignature(new Type[] {null, null, null});
@@ -279,7 +278,6 @@ public class DataConstraintModel {
 		addSymbol(snd);
 		addSymbol(insert);
 		addSymbol(lookup);
-		addSymbol(json);
 		addSymbol(addMember);
 		addSymbol(dot);
 		addSymbol(dotParam);

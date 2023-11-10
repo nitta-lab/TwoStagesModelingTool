@@ -28,6 +28,14 @@ public class Position implements Cloneable {
 	public boolean isEmpty() {
 		return (orders == null || orders.size() == 0);
 	}
+
+	public boolean isAncestorOf(Position another) {
+		if (another.orders.size() < this.orders.size()) return false;
+		for (int i = 0; i < orders.size(); i++) {
+			if (this.orders.get(i) != another.orders.get(i)) return false;
+		}
+		return true;
+	}
 	
 	public Object clone() {
 		return new Position((ArrayList<Integer>) orders.clone());

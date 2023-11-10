@@ -37,6 +37,7 @@ import parser.Parser;
 import parser.exceptions.ExpectedAssignment;
 import parser.exceptions.ExpectedChannel;
 import parser.exceptions.ExpectedChannelName;
+import parser.exceptions.ExpectedColon;
 import parser.exceptions.ExpectedEquals;
 import parser.exceptions.ExpectedFormulaChannel;
 import parser.exceptions.ExpectedGeometry;
@@ -254,7 +255,7 @@ public class Editor {
 					return model;
 				} catch (ExpectedChannel | ExpectedChannelName | ExpectedLeftCurlyBracket | ExpectedInOrOutOrRefKeyword
 						| ExpectedStateTransition | ExpectedEquals | ExpectedRHSExpression | WrongLHSExpression
-						| WrongRHSExpression | ExpectedRightBracket | ExpectedAssignment | ExpectedModel | ExpectedGeometry | ExpectedNode | ExpectedResource | ExpectedFormulaChannel | ExpectedIoChannel | WrongJsonExpression e) {
+						| WrongRHSExpression | ExpectedRightBracket | ExpectedAssignment | ExpectedModel | ExpectedGeometry | ExpectedNode | ExpectedResource | ExpectedFormulaChannel | ExpectedIoChannel | WrongJsonExpression | ExpectedColon e) {
 					e.printStackTrace();
 				}
 			}
@@ -268,6 +269,7 @@ public class Editor {
 	public DataTransferModel openModel(File file) {
 		// Force to change to data-flow modeling stage.
 		boolean stageChanged = changeStage(STAGE_DATA_FLOW_MODELING);
+
 		if (!stageChanged) return null;
 		
 		try {
@@ -290,7 +292,7 @@ public class Editor {
 				return model;
 			} catch (ExpectedChannel | ExpectedChannelName | ExpectedLeftCurlyBracket | ExpectedInOrOutOrRefKeyword
 					| ExpectedStateTransition | ExpectedEquals | ExpectedRHSExpression | WrongLHSExpression
-					| WrongRHSExpression | ExpectedRightBracket | ExpectedAssignment | WrongJsonExpression e) {
+					| WrongRHSExpression | ExpectedRightBracket | ExpectedAssignment | WrongJsonExpression | ExpectedColon e) {
 				e.printStackTrace();
 			}
 		} catch (FileNotFoundException e) {

@@ -32,6 +32,7 @@ import parser.Parser.TokenStream;
 import parser.exceptions.ExpectedAssignment;
 import parser.exceptions.ExpectedChannel;
 import parser.exceptions.ExpectedChannelName;
+import parser.exceptions.ExpectedColon;
 import parser.exceptions.ExpectedEquals;
 import parser.exceptions.ExpectedInOrOutOrRefKeyword;
 import parser.exceptions.ExpectedLeftCurlyBracket;
@@ -455,7 +456,7 @@ public class DataFlowModelingStage extends Stage {
 			}
 		} catch (ExpectedRightBracket | ExpectedChannel | ExpectedChannelName | ExpectedLeftCurlyBracket
 				| ExpectedInOrOutOrRefKeyword | ExpectedStateTransition | ExpectedEquals | ExpectedRHSExpression
-				| WrongLHSExpression | WrongRHSExpression | ExpectedAssignment | WrongJsonExpression e) {
+				| WrongLHSExpression | WrongRHSExpression | ExpectedAssignment | WrongJsonExpression | ExpectedColon e) {
 			e.printStackTrace();
 		}
 	}

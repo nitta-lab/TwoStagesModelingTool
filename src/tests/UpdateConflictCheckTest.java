@@ -11,6 +11,7 @@ import parser.Parser;
 import parser.exceptions.ExpectedAssignment;
 import parser.exceptions.ExpectedChannel;
 import parser.exceptions.ExpectedChannelName;
+import parser.exceptions.ExpectedColon;
 import parser.exceptions.ExpectedEquals;
 import parser.exceptions.ExpectedInOrOutOrRefKeyword;
 import parser.exceptions.ExpectedLeftCurlyBracket;
@@ -63,6 +64,9 @@ public class UpdateConflictCheckTest {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} catch (WrongJsonExpression e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (ExpectedColon e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}

@@ -15,6 +15,7 @@ import models.dataFlowModel.DataTransferModel;
 import parser.exceptions.ExpectedAssignment;
 import parser.exceptions.ExpectedChannel;
 import parser.exceptions.ExpectedChannelName;
+import parser.exceptions.ExpectedColon;
 import parser.exceptions.ExpectedEquals;
 import parser.exceptions.ExpectedFormulaChannel;
 import parser.exceptions.ExpectedGeometry;
@@ -64,9 +65,10 @@ public class ParserDTRAM extends Parser {
 	 * 
 	 * @param reader
 	 * @throws WrongJsonExpression 
+	 * @throws ExpectedColon 
 	 */
 	public DataTransferModel doParseModel() 
-			throws ExpectedRightBracket, ExpectedChannel, ExpectedChannelName, ExpectedLeftCurlyBracket, ExpectedInOrOutOrRefKeyword, ExpectedStateTransition, ExpectedEquals, ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, ExpectedAssignment, ExpectedModel, ExpectedGeometry, WrongJsonExpression {
+			throws ExpectedRightBracket, ExpectedChannel, ExpectedChannelName, ExpectedLeftCurlyBracket, ExpectedInOrOutOrRefKeyword, ExpectedStateTransition, ExpectedEquals, ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, ExpectedAssignment, ExpectedModel, ExpectedGeometry, WrongJsonExpression, ExpectedColon {
 		DataTransferModel model = getParsedModel();
 		return model;
 	}
@@ -87,9 +89,10 @@ public class ParserDTRAM extends Parser {
 	 * 
 	 * @param stream
 	 * @throws WrongJsonExpression 
+	 * @throws ExpectedColon 
 	 */
 	private DataTransferModel getParsedModel()
-			throws ExpectedRightBracket, ExpectedChannel, ExpectedChannelName, ExpectedLeftCurlyBracket, ExpectedInOrOutOrRefKeyword, ExpectedStateTransition, ExpectedEquals, ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, ExpectedAssignment, ExpectedModel, ExpectedGeometry, WrongJsonExpression  {
+			throws ExpectedRightBracket, ExpectedChannel, ExpectedChannelName, ExpectedLeftCurlyBracket, ExpectedInOrOutOrRefKeyword, ExpectedStateTransition, ExpectedEquals, ExpectedRHSExpression, WrongLHSExpression, WrongRHSExpression, ExpectedAssignment, ExpectedModel, ExpectedGeometry, WrongJsonExpression, ExpectedColon  {
 
 		if (!stream.hasNext()) throw new NullPointerException();
 

@@ -34,6 +34,30 @@ public class JsonAccessor extends Term {
 		return super.getType();
 	}
 	
+	@Override
+	public Expression reduce() {
+		Expression reducedTerm = super.reduce();
+		if (reducedTerm instanceof Term) {
+			if (symbol.equals(DataConstraintModel.dot) && getChildren().size() >= 2) {
+				// this term is `json.key`.
+				Expression expJson = getChild(0);
+				Expression expKey = getChild(1);
+				if (expKey instanceof Constant && expJson instanceof Term) {
+					reducedTerm = getValue((Term) expJson, (Constant) expKey);
+				}
+			}
+		}
+		return reducedTerm;
+	}
+	
+	private Expression getValue(Term json, Constant key) {
+		if (!json.getSymbol().equals(DataConstraintModel.addMember)) return null;
+		if (json.getChild(1).equals(key)) {
+			return json.getChild(2);
+		}
+		if (json.getChild(0) == null || json.getChild(0).equals(DataConstraintModel.nil)) return null;
+		return getValue((Term) json.getChild(0), key);
+	}
 
 	@Override
 	public Expression getInverseMap(Expression outputValue, Position targetPos) {
@@ -55,7 +79,8 @@ public class JsonAccessor extends Term {
 				String keyName = null;
 				if (expKey instanceof Constant) {
 					keyName = ((Constant) expKey).getSymbol().getName();
-					Term jsonTerm = new Constant(DataConstraintModel.json);
+					Term jsonTerm = new Constant(DataConstraintModel.nil);
+					jsonTerm.setType(DataConstraintModel.typeJson);
 					int v = 1;
 					Map<String, Variable> vars = new HashMap<>();
 					Set<String> keySet = new HashSet<>();
@@ -138,5 +163,15 @@ public class JsonAccessor extends Term {
 			return children.get(0).toImplementation(sideEffects) + symbol.toImplementation() + "{" + children.get(1).toImplementation(sideEffects) + "}";		
 		}
 		return super.toImplementation(sideEffects);
+	}
+	
+	@Override
+	public Object clone() {
+		JsonAccessor newTerm = new JsonAccessor(symbol);
+		for (Expression e: children) {
+			newTerm.addChild((Expression) e.clone());
+		}
+		newTerm.type = type;
+		return newTerm;
 	}
 }

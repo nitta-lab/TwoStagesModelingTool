@@ -28,37 +28,38 @@ public class DataTransferModelAnalyzer {
 		channels.addAll(model.getChannels());
 		for (Channel channel: channels) {
 			for (ChannelMember member: ((DataTransferChannel) channel).getOutputChannelMembers()) {
-				boolean flag = !member.getStateTransition().isRightUnary();		// The state does not need to be stored if the state transition function is right unary.
-				for (Node node : graph.getNodes()) {
+				boolean toBeStored = !member.getStateTransition().isRightUnary();		// The state does not need to be stored if the state transition function is right unary.
+				for (Node node: graph.getNodes()) {
 					if (((ResourceNode) node).getResource().equals(member.getResource())) {
-						setStoreAttribute(flag, (ResourceNode) node);
+						setStoreAttribute((ResourceNode) node, toBeStored);
 					}
 				}
 			}
 		}
-		for (Node node : graph.getNodes()) {
+		for (Node node: graph.getNodes()) {
 			HashSet<Channel> inChannels = new HashSet<>();
-			for(Edge pre : ((ResourceNode) node).getInEdges()) {
-				inChannels.add(((DataFlowEdge) pre).getChannel());
+			for(Edge inEdge: ((ResourceNode) node).getInEdges()) {
+				inChannels.add(((DataFlowEdge) inEdge).getChannel());
 			}
 			if ((inChannels.size() > 1)) {
-				setStoreAttribute(true, (ResourceNode) node);
+				// If the resource has multiple input channels, then the state of the resource needs to be stored.
+				setStoreAttribute((ResourceNode) node, true);
 			} else if (((ResourceNode) node).getAttribute() == null) {
-				setStoreAttribute(false, (ResourceNode) node);
+				setStoreAttribute((ResourceNode) node, false);
 			}
 		}
 		return graph;
 	}
 
-	static private void setStoreAttribute(boolean flag, ResourceNode node) {
+	static private void setStoreAttribute(ResourceNode node, boolean toBeStored) {
 		NodeAttribute attr = node.getAttribute();
 		StoreAttribute store;
 		if (attr != null && attr instanceof NodeAttribute) {
 			store = (StoreAttribute) attr;
-			store.setNeeded(store.isNeeded() || flag);
+			store.setNeeded(store.isNeeded() || toBeStored);
 		} else {
 			store = new StoreAttribute();
-			store.setNeeded(flag);
+			store.setNeeded(toBeStored);
 			node.setAttribute(store);
 		}
 	}

@@ -242,7 +242,7 @@ public class Term extends Expression {
 		if (getArity() == 2 && symbol.isInfix()) {
 			return "(" + children.get(0) + symbol.toString() + children.get(1) + ")";
 		}
-		if (getArity() >= 1 && symbol.isMethod()) {
+		if ((getArity() >= 1 || getArity() == -1) && symbol.isMethod()) {
 			String exp = children.get(0).toString() + "." + symbol.toString() + "(";
 			String delimiter = "";
 			for (int i = 1; i < children.size(); i++) {
@@ -325,7 +325,7 @@ public class Term extends Expression {
 				return "(" + children.get(implParamOrder[0]).toImplementation(sideEffects) + symbol.toImplementation() + children.get(implParamOrder[1]).toImplementation(sideEffects) + ")";				
 			}
 		}
-		if (getArity() >= 1 && symbol.isImplMethod()) {
+		if ((getArity() >= 1 || getArity() == -1) && symbol.isImplMethod()) {
 			if (implParamOrder == null) {
 				String exp = null;
 				if (children.get(0) != null) {

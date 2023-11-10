@@ -17,6 +17,7 @@ import parser.Parser;
 import parser.exceptions.ExpectedAssignment;
 import parser.exceptions.ExpectedChannel;
 import parser.exceptions.ExpectedChannelName;
+import parser.exceptions.ExpectedColon;
 import parser.exceptions.ExpectedEquals;
 import parser.exceptions.ExpectedInOrOutOrRefKeyword;
 import parser.exceptions.ExpectedLeftCurlyBracket;
@@ -55,7 +56,7 @@ public class ParseTest {
 					| ExpectedStateTransition | ExpectedEquals | ExpectedRHSExpression | WrongLHSExpression
 					| WrongRHSExpression | ExpectedRightBracket | ParameterizedIdentifierIsFutureWork 
 					| ResolvingMultipleDefinitionIsFutureWork | InvalidMessage
-					| UnificationFailed | ValueUndefined | ExpectedAssignment | WrongJsonExpression e) {
+					| UnificationFailed | ValueUndefined | ExpectedAssignment | WrongJsonExpression | ExpectedColon e) {
 				e.printStackTrace();
 			}
 		} catch (FileNotFoundException e) {

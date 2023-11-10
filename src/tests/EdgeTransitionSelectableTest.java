@@ -12,6 +12,7 @@ import parser.*;
 import parser.exceptions.ExpectedAssignment;
 import parser.exceptions.ExpectedChannel;
 import parser.exceptions.ExpectedChannelName;
+import parser.exceptions.ExpectedColon;
 import parser.exceptions.ExpectedEquals;
 import parser.exceptions.ExpectedInOrOutOrRefKeyword;
 import parser.exceptions.ExpectedLeftCurlyBracket;
@@ -39,7 +40,7 @@ public class EdgeTransitionSelectableTest {
 				}
 			} catch (ExpectedChannel | ExpectedChannelName | ExpectedLeftCurlyBracket | ExpectedInOrOutOrRefKeyword
 					| ExpectedStateTransition | ExpectedEquals | ExpectedRHSExpression | WrongLHSExpression
-					| WrongRHSExpression | ExpectedRightBracket | ExpectedAssignment | WrongJsonExpression e) {
+					| WrongRHSExpression | ExpectedRightBracket | ExpectedAssignment | WrongJsonExpression | ExpectedColon e) {
 				e.printStackTrace();
 			}
 		} catch (FileNotFoundException e) {

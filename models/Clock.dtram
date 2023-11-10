@@ -8,11 +8,11 @@ model {
 	}
 	channel MinUpdate {
 	   in min(m, update(m2)) == m2
-	   out min_ang(m_ang: Double, update(m2)) == m2 / 30 * PI
+	   out min_ang(m_ang: Double, update(m2)) == mod(m2, 60) / 30 * PI
 	}
 	channel HourUpdate {
 	   in hour(h, update(h2)) == h2
-	   out hour_ang(h_ang: Double, update(h2)) == h2 / 6 * PI
+	   out hour_ang(h_ang: Double, update(h2)) == mod(h2, 12) / 6 * PI
 	}
 }
 geometry {

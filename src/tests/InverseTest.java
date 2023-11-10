@@ -21,6 +21,7 @@ import models.dataConstraintModel.JsonType;
 import models.dataFlowModel.DataTransferModel;
 import parser.Parser;
 import parser.Parser.TokenStream;
+import parser.exceptions.ExpectedColon;
 import parser.exceptions.ExpectedRightBracket;
 import parser.exceptions.WrongJsonExpression;
 
@@ -110,7 +111,7 @@ public class InverseTest {
 				assertTrue(inv.contains(z));
 				assertFalse(inv.contains(v));
 			}						
-		} catch (ExpectedRightBracket | WrongJsonExpression e) {
+		} catch (ExpectedRightBracket | WrongJsonExpression | ExpectedColon e) {
 			e.printStackTrace();
 		}
 	}
