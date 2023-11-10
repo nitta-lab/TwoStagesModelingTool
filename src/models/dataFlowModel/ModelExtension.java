@@ -57,7 +57,7 @@ public class ModelExtension {
 			merge.setGenerator(new Symbol.IImplGenerator() {
 				@Override
 				public String generate(Type type, String[] childrenImpl, String[] childrenSideEffects, String[] sideEffect) {
-					String implType = "Arrayist<>";
+					String implType = "ArrayList<>";
 					String interfaceType = "List<Integer>";
 					String compType = "Integer";
 					if (type != null) {
